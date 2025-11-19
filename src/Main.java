@@ -1,15 +1,23 @@
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+import javax.swing.*;
+
 public class Main {
     public static void main(String[] args) {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        System.out.printf("Hello and welcome!");
-
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            System.out.println("i = " + i);
+        String[] options = {"Start Server", "Start Client", "Exit"};
+        int choice = JOptionPane.showOptionDialog(null,
+                "Welcome to Soccer Game!\nChoose an option:",
+                "Soccer Game",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                options,
+                options[1]);
+        
+        if (choice == 0) {
+            new Thread(() -> SoccerGameServer.main(args)).start();
+        } else if (choice == 1) {
+            SwingUtilities.invokeLater(() -> new SoccerGameClient());
+        } else {
+            System.exit(0);
         }
     }
 }

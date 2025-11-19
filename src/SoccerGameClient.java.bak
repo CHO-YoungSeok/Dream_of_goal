@@ -1,0 +1,414 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.net.Socket;
+import java.util.*;
+import java.util.List;
+import javax.imageio.ImageIO;
+
+public class SoccerGameClient extends JFrame {
+    private static final int SCREEN_WIDTH = 800;
+    private static final int SCREEN_HEIGHT = 600;
+    private static final int FIELD_WIDTH = 1200;
+    private static final int FIELD_HEIGHT = 800;
+    private static final int PLAYER_SIZE = 40;
+    private static final int BALL_SIZE = 20;
+    private static final double FRICTION = 0.98;
+    private static final double PLAYER_SPEED = 5.0;
+    private static final double KICK_POWER = 15.0;
+    
+    private GamePanel gamePanel;
+    private Socket socket;
+    private PrintWriter out;
+    private BufferedReader in;
+    
+    private int myPlayerIndex;
+    private int myTeam;
+    private Player myPlayer;
+    private Ball ball;
+    private Map<Integer, Player> otherPlayers = new HashMap<>();
+    
+    private Image fieldImage;
+    private Image ballImage;
+    private Image introImage;
+    private Image[] playerImages = new Image[2];
+    
+    private boolean gameStarted = false;
+    private int team1Score = 0;
+    private int team2Score = 0;
+    
+    class Player {
+        double x, y;
+        int team;
+        String name;
+        int index;
+        
+        Player(double x, double y, int team, String name, int index) {
+            this.x = x;
+            this.y = y;
+            this.team = team;
+            this.name = name;
+            this.index = index;
+        }
+    }
+    
+    class Ball {
+        double x, y;
+        double velX, velY;
+        
+        Ball(double x, double y) {
+            this.x = x;
+            this.y = y;
+            this.velX = 0;
+            this.velY = 0;
+        }
+        
+        void update() {
+            x += velX;
+            y += velY;
+            velX *= FRICTION;
+            velY *= FRICTION;
+            
+            if (Math.abs(velX) < 0.1) velX = 0;
+            if (Math.abs(velY) < 0.1) velY = 0;
+            
+            if (x < BALL_SIZE) x = BALL_SIZE;
+            if (x > FIELD_WIDTH - BALL_SIZE) x = FIELD_WIDTH - BALL_SIZE;
+            if (y < BALL_SIZE) y = BALL_SIZE;
+            if (y > FIELD_HEIGHT - BALL_SIZE) y = FIELD_HEIGHT - BALL_SIZE;
+            
+            checkGoal();
+        }
+        
+        void checkGoal() {
+            boolean scored = false;
+            int scoringTeam = 0;
+            
+            if (y > FIELD_HEIGHT / 2 - 100 && y < FIELD_HEIGHT / 2 + 100) {
+                if (x < 50) {
+                    scored = true;
+                    scoringTeam = 2;
+                } else if (x > FIELD_WIDTH - 50) {
+                    scored = true;
+                    scoringTeam = 1;
+                }
+            }
+            
+            if (scored) {
+                sendMessage("GOAL:" + scoringTeam);
+                reset();
+            }
+        }
+        
+        void reset() {
+            x = FIELD_WIDTH / 2.0;
+            y = FIELD_HEIGHT / 2.0;
+            velX = 0;
+            velY = 0;
+        }
+    }
+    
+    class GamePanel extends JPanel {
+        private Set<Integer> pressedKeys = new HashSet<>();
+        
+        GamePanel() {
+            setPreferredSize(new Dimension(SCREEN_WIDTH, SCREEN_HEIGHT));
+            setBackground(Color.GREEN);
+            setFocusable(true);
+            
+            addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent e) {
+                    pressedKeys.add(e.getKeyCode());
+                }
+                
+                @Override
+                public void keyReleased(KeyEvent e) {
+                    pressedKeys.remove(e.getKeyCode());
+                }
+            });
+            
+            javax.swing.Timer timer = new javax.swing.Timer(16, e -> {
+                if (gameStarted && myPlayer != null) {
+                    updatePlayer();
+                    ball.update();
+                    checkBallCollision();
+                    repaint();
+                }
+            });
+            timer.start();
+        }
+        
+        private void updatePlayer() {
+            double oldX = myPlayer.x;
+            double oldY = myPlayer.y;
+            
+            if (pressedKeys.contains(KeyEvent.VK_LEFT) || pressedKeys.contains(KeyEvent.VK_A)) {
+                myPlayer.x -= PLAYER_SPEED;
+            }
+            if (pressedKeys.contains(KeyEvent.VK_RIGHT) || pressedKeys.contains(KeyEvent.VK_D)) {
+                myPlayer.x += PLAYER_SPEED;
+            }
+            if (pressedKeys.contains(KeyEvent.VK_UP) || pressedKeys.contains(KeyEvent.VK_W)) {
+                myPlayer.y -= PLAYER_SPEED;
+            }
+            if (pressedKeys.contains(KeyEvent.VK_DOWN) || pressedKeys.contains(KeyEvent.VK_S)) {
+                myPlayer.y += PLAYER_SPEED;
+            }
+            
+            myPlayer.x = Math.max(PLAYER_SIZE / 2, Math.min(FIELD_WIDTH - PLAYER_SIZE / 2, myPlayer.x));
+            myPlayer.y = Math.max(PLAYER_SIZE / 2, Math.min(FIELD_HEIGHT - PLAYER_SIZE / 2, myPlayer.y));
+            
+            if (oldX != myPlayer.x || oldY != myPlayer.y) {
+                sendMessage("MOVE:" + myPlayer.x + ":" + myPlayer.y);
+            }
+        }
+        
+        private void checkBallCollision() {
+            double dx = ball.x - myPlayer.x;
+            double dy = ball.y - myPlayer.y;
+            double distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < PLAYER_SIZE / 2 + BALL_SIZE / 2) {
+                double angle = Math.atan2(dy, dx);
+                ball.velX = Math.cos(angle) * KICK_POWER;
+                ball.velY = Math.sin(angle) * KICK_POWER;
+                sendMessage("BALL:" + ball.x + ":" + ball.y + ":" + ball.velX + ":" + ball.velY);
+            }
+        }
+        
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            if (!gameStarted) {
+                drawIntro(g2d);
+                return;
+            }
+            
+            double cameraX = ball.x - SCREEN_WIDTH / 2.0;
+            double cameraY = ball.y - SCREEN_HEIGHT / 2.0;
+            
+            cameraX = Math.max(0, Math.min(FIELD_WIDTH - SCREEN_WIDTH, cameraX));
+            cameraY = Math.max(0, Math.min(FIELD_HEIGHT - SCREEN_HEIGHT, cameraY));
+            
+            g2d.translate(-cameraX, -cameraY);
+            
+            drawField(g2d);
+            drawBall(g2d);
+            drawPlayers(g2d);
+            
+            g2d.translate(cameraX, cameraY);
+            drawUI(g2d);
+        }
+        
+        private void drawIntro(Graphics2D g) {
+            if (introImage != null) {
+                g.drawImage(introImage, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, null);
+            }
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.BOLD, 36));
+            String text = "Waiting for players...";
+            FontMetrics fm = g.getFontMetrics();
+            int x = (SCREEN_WIDTH - fm.stringWidth(text)) / 2;
+            g.drawString(text, x, SCREEN_HEIGHT / 2);
+        }
+        
+        private void drawField(Graphics2D g) {
+            if (fieldImage != null) {
+                g.drawImage(fieldImage, 0, 0, FIELD_WIDTH, FIELD_HEIGHT, null);
+            } else {
+                g.setColor(new Color(34, 139, 34));
+                g.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+            }
+            
+            g.setColor(Color.WHITE);
+            g.setStroke(new BasicStroke(3));
+            g.drawRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+            g.drawLine(FIELD_WIDTH / 2, 0, FIELD_WIDTH / 2, FIELD_HEIGHT);
+            g.drawOval(FIELD_WIDTH / 2 - 80, FIELD_HEIGHT / 2 - 80, 160, 160);
+            
+            g.drawRect(0, FIELD_HEIGHT / 2 - 100, 80, 200);
+            g.drawRect(FIELD_WIDTH - 80, FIELD_HEIGHT / 2 - 100, 80, 200);
+        }
+        
+        private void drawBall(Graphics2D g) {
+            if (ballImage != null) {
+                int drawX = (int) ball.x - BALL_SIZE / 2;
+                int drawY = (int) ball.y - BALL_SIZE / 2;
+                g.drawImage(ballImage, drawX, drawY, BALL_SIZE, BALL_SIZE, null);
+            } else {
+                g.setColor(Color.WHITE);
+                g.fillOval((int) ball.x - BALL_SIZE / 2, (int) ball.y - BALL_SIZE / 2, BALL_SIZE, BALL_SIZE);
+            }
+        }
+        
+        private void drawPlayers(Graphics2D g) {
+            if (myPlayer != null) {
+                drawPlayer(g, myPlayer);
+            }
+            
+            for (Player p : otherPlayers.values()) {
+                drawPlayer(g, p);
+            }
+        }
+        
+        private void drawPlayer(Graphics2D g, Player p) {
+            int drawX = (int) p.x - PLAYER_SIZE / 2;
+            int drawY = (int) p.y - PLAYER_SIZE / 2;
+            
+            if (playerImages[p.team - 1] != null) {
+                g.drawImage(playerImages[p.team - 1], drawX, drawY, PLAYER_SIZE, PLAYER_SIZE, null);
+            } else {
+                g.setColor(p.team == 1 ? Color.RED : Color.BLUE);
+                g.fillOval(drawX, drawY, PLAYER_SIZE, PLAYER_SIZE);
+            }
+            
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.BOLD, 12));
+            FontMetrics fm = g.getFontMetrics();
+            int textX = (int) p.x - fm.stringWidth(p.name) / 2;
+            g.drawString(p.name, textX, (int) p.y - PLAYER_SIZE / 2 - 5);
+        }
+        
+        private void drawUI(Graphics2D g) {
+            g.setColor(new Color(0, 0, 0, 150));
+            g.fillRect(10, 10, 200, 60);
+            
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.BOLD, 20));
+            g.drawString("Team 1: " + team1Score, 20, 35);
+            g.drawString("Team 2: " + team2Score, 20, 60);
+        }
+    }
+    
+    private void loadImages() {
+        try {
+            fieldImage = ImageIO.read(new File("src/image/feild.jpg"));
+            ballImage = ImageIO.read(new File("src/image/ball.png"));
+            introImage = ImageIO.read(new File("src/image/intro_image.jpg"));
+            playerImages[0] = ImageIO.read(new File("src/image/players/mario.webp"));
+            playerImages[1] = ImageIO.read(new File("src/image/players/nyan.webp"));
+        } catch (IOException e) {
+            System.out.println("Failed to load images: " + e.getMessage());
+        }
+    }
+    
+    private void connectToServer(String serverAddress, int port, String playerName) {
+        try {
+            socket = new Socket(serverAddress, port);
+            out = new PrintWriter(socket.getOutputStream(), true);
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            
+            out.println(playerName);
+            
+            new Thread(() -> {
+                try {
+                    String message;
+                    while ((message = in.readLine()) != null) {
+                        handleServerMessage(message);
+                    }
+                } catch (IOException e) {
+                    System.out.println("Disconnected from server");
+                }
+            }).start();
+            
+        } catch (IOException e) {
+            System.out.println("Failed to connect to server: " + e.getMessage());
+        }
+    }
+    
+    private void handleServerMessage(String message) {
+        String[] parts = message.split(":");
+        
+        switch (parts[0]) {
+            case "INIT":
+                myPlayerIndex = Integer.parseInt(parts[1]);
+                myTeam = Integer.parseInt(parts[2]);
+                double x = Double.parseDouble(parts[3]);
+                double y = Double.parseDouble(parts[4]);
+                myPlayer = new Player(x, y, myTeam, "Me", myPlayerIndex);
+                break;
+                
+            case "PLAYER_JOIN":
+                int index = Integer.parseInt(parts[1]);
+                if (index != myPlayerIndex) {
+                    String name = parts[2];
+                    int team = Integer.parseInt(parts[3]);
+                    double px = Double.parseDouble(parts[4]);
+                    double py = Double.parseDouble(parts[5]);
+                    otherPlayers.put(index, new Player(px, py, team, name, index));
+                }
+                break;
+                
+            case "PLAYER_MOVE":
+                int pIndex = Integer.parseInt(parts[1]);
+                if (pIndex != myPlayerIndex && otherPlayers.containsKey(pIndex)) {
+                    Player p = otherPlayers.get(pIndex);
+                    p.x = Double.parseDouble(parts[2]);
+                    p.y = Double.parseDouble(parts[3]);
+                }
+                break;
+                
+            case "BALL_UPDATE":
+                ball.x = Double.parseDouble(parts[1]);
+                ball.y = Double.parseDouble(parts[2]);
+                ball.velX = Double.parseDouble(parts[3]);
+                ball.velY = Double.parseDouble(parts[4]);
+                break;
+                
+            case "SCORE":
+                team1Score = Integer.parseInt(parts[1]);
+                team2Score = Integer.parseInt(parts[2]);
+                break;
+                
+            case "GAME_START":
+                gameStarted = true;
+                break;
+                
+            case "PLAYER_LEFT":
+                int leftIndex = Integer.parseInt(parts[1]);
+                otherPlayers.remove(leftIndex);
+                break;
+        }
+    }
+    
+    private void sendMessage(String message) {
+        if (out != null) {
+            out.println(message);
+        }
+    }
+    
+    public SoccerGameClient() {
+        setTitle("Soccer Game");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        
+        ball = new Ball(FIELD_WIDTH / 2.0, FIELD_HEIGHT / 2.0);
+        
+        loadImages();
+        
+        gamePanel = new GamePanel();
+        add(gamePanel);
+        
+        pack();
+        setLocationRelativeTo(null);
+        setResizable(false);
+        setVisible(true);
+        
+        String serverAddress = JOptionPane.showInputDialog(this, "Enter server address:", "localhost");
+        String playerName = JOptionPane.showInputDialog(this, "Enter your name:", "Player");
+        
+        if (serverAddress != null && playerName != null) {
+            connectToServer(serverAddress, 54322, playerName);
+        }
+    }
+    
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new SoccerGameClient());
+    }
+}
