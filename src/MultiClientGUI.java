@@ -20,6 +20,7 @@ public class MultiClientGUI extends JFrame {
     JTextField t_userID;
     JTextField t_serverAddress;
     JTextField t_serverPort;
+    JTextField t_answerKey;
 
 
     void buildGUI() {
@@ -39,18 +40,20 @@ public class MultiClientGUI extends JFrame {
         JLabel l_userID = new JLabel("아이디: ");
         JLabel l_serverAddress = new JLabel("서버 주소: ");
         JLabel l_serverPort = new JLabel("포트번호: ");
+        JLabel l_answerKey = new JLabel("answerKey: ");
         try {
             InetAddress local  = InetAddress.getLocalHost();
             String addr = local.getHostAddress();
             String[] part = addr.split("\\.");
             System.out.println("local: " + local + "");
             System.out.println("addr: " + addr + "");
-            t_userID = new JTextField("guest" + part[3], 10);
+            t_userID = new JTextField("guest" + part[3], 6);
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
-        t_serverAddress = new JTextField("localhost", 10);
-        t_serverPort = new JTextField("54321", 10);
+        t_serverAddress = new JTextField("localhost", 6);
+        t_serverPort = new JTextField("54321", 6);
+        t_answerKey = new JTextField("1357", 6);
 
         panel.add(l_userID);
         panel.add(t_userID);
@@ -58,6 +61,8 @@ public class MultiClientGUI extends JFrame {
         panel.add(t_serverAddress);
         panel.add(l_serverPort);
         panel.add(t_serverPort);
+        panel.add(l_answerKey);
+        panel.add(t_answerKey);
         return panel;
     }
 
@@ -141,6 +146,7 @@ public class MultiClientGUI extends JFrame {
             t_userID.setEnabled(false);
             t_serverAddress.setEnabled(false);
             t_serverPort.setEnabled(false);
+            t_answerKey.setEnabled(false);
         });
 
         b_disconnect.addActionListener(e -> {
@@ -177,7 +183,7 @@ public class MultiClientGUI extends JFrame {
             out.flush();
             in = new ObjectInputStream(socket.getInputStream());
 
-            Message connectMsg = new Message(Message.MessageType.CONNECT, t_userID.getText(), "");
+            Message connectMsg = new Message(Message.MessageType.CONNECT, t_userID.getText(), t_answerKey.getText());
             out.writeObject(connectMsg);
             out.flush();
 

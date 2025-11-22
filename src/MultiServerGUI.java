@@ -3,7 +3,9 @@ import java.awt.*;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class MultiServerGUI extends JFrame {
@@ -14,6 +16,7 @@ public class MultiServerGUI extends JFrame {
     JButton b_serverStart;
     JButton b_serverClose;
     JButton b_exit;
+    Map<ClientHandler, String> AnswerKeyMap = new HashMap<>();
 
     class ClientHandler implements Runnable {
         static private final Set<ClientHandler> clientHandlers = new HashSet<>();
@@ -23,6 +26,7 @@ public class MultiServerGUI extends JFrame {
         private ObjectInputStream in;
         private ObjectOutputStream out;
         private volatile boolean running = true;
+        private String answerKey;
 
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
@@ -43,8 +47,10 @@ public class MultiServerGUI extends JFrame {
             try {
                 Message connectMsg = (Message) in.readObject();
                 uid = connectMsg.getUserId();
-                displayMessage(connectMsg.toString());
+                displayMessage(connectMsg.toString() + ", answerKEY: " + connectMsg.getContent());
                 broadcasting(connectMsg);
+                this.answerKey = connectMsg.getContent(); // connectMsg에는 answerKey가 들어있다.
+                AnswerKeyMap.put(this, answerKey);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             } catch (ClassNotFoundException e) {
@@ -58,7 +64,15 @@ public class MultiServerGUI extends JFrame {
             Message message;
             try {
                 while (running && (message = (Message) in.readObject()) != null) {
-                    displayMessage(message.toString());
+                    String answerKey = message.getContent().toString();
+                    StringBuilder sb = new StringBuilder(message.toString());
+                    if (checkAnswerKey(answerKey)) {
+                        sb.append("Correct answer: " + answerKey);
+                        sb.append(message.getUserId() + " WIN!!!");
+                    } else {
+                        sb.append("Wrong answer: " + answerKey);
+                    }
+                    displayMessage(sb.toString());
                     broadcasting(message);
                 }
             } catch (IOException e) {
@@ -100,6 +114,16 @@ public class MultiServerGUI extends JFrame {
             Message disconnectMsg = new Message(Message.MessageType.DISCONNECT, uid, clientSocket.getInetAddress().toString());
             displayMessage(disconnectMsg.toString());
             broadcasting(disconnectMsg);
+        }
+
+        public Boolean checkAnswerKey(String answer) {
+            for (Map.Entry<ClientHandler, String> entry : AnswerKeyMap.entrySet()) {
+                if (this == entry.getKey()) continue;
+                return answer.equals(entry.getValue());
+            }
+
+            System.out.println("ERR: checkAnswerKey");
+            return false;
         }
     }
 
