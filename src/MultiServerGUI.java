@@ -20,16 +20,17 @@ public class MultiServerGUI extends JFrame {
 
         private String uid;
         private Socket clientSocket;
-        private BufferedReader in;
-        private BufferedWriter out;
+        private ObjectInputStream in;
+        private ObjectOutputStream out;
         private volatile boolean running = true;
 
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
             clientHandlers.add(this);
             try {
-                in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                out = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
+                out = new ObjectOutputStream(clientSocket.getOutputStream());
+                out.flush();
+                in = new ObjectInputStream(clientSocket.getInputStream());
             } catch (IOException e) {
                 displayMessage("Error creating I/O streams: " + e.getMessage());
                 running = false;
@@ -40,10 +41,13 @@ public class MultiServerGUI extends JFrame {
         public void run() {
             // 새로 들어올 때 아이디 출력.
             try {
-                uid = in.readLine();
-                displayMessage("newClient is connected : " + uid);
-                broadcasting("newClient is connected: " + uid);
+                Message connectMsg = (Message) in.readObject();
+                uid = connectMsg.getUserId();
+                displayMessage(connectMsg.toString());
+                broadcasting(connectMsg);
             } catch (IOException e) {
+                throw new RuntimeException(e);
+            } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }
 
@@ -51,29 +55,31 @@ public class MultiServerGUI extends JFrame {
         }
 
         void receiveMessage() {
-            String message;
+            Message message;
             try {
-                while (running && (message = in.readLine()) != null) {
-                    displayMessage(uid +": " + message);
-                    broadcasting(uid +": " + message);
+                while (running && (message = (Message) in.readObject()) != null) {
+                    displayMessage(message.toString());
+                    broadcasting(message);
                 }
             } catch (IOException e) {
                 displayMessage("Client disconnected unexpectedly: " + clientSocket.getInetAddress());
+            } catch (ClassNotFoundException e) {
+                displayMessage("ClassNotFoundException: " + e.getMessage());
             } finally {
                 closeClientConnection();
             }
         }
 
-        private void broadcasting(String message) {
+        private void broadcasting(Message message) {
             for (ClientHandler ch : clientHandlers) {
                 if (ch == this) continue;
                 ch.sendMessage(message);
             }
         }
 
-        private void sendMessage(String message) {
+        private void sendMessage(Message message) {
             try {
-                out.write(message + "\n");
+                out.writeObject(message);
                 out.flush();
             } catch (IOException e) {
                 displayMessage("Error sending message to client: " + e.getMessage());
@@ -91,8 +97,9 @@ public class MultiServerGUI extends JFrame {
             } catch (IOException e) {
                 displayMessage("Error closing client socket: " + e.getMessage());
             }
-            displayMessage(uid + " is disconnected " + clientSocket.getInetAddress());
-            broadcasting(uid + " is disconnected " + clientSocket.getInetAddress());
+            Message disconnectMsg = new Message(Message.MessageType.DISCONNECT, uid, clientSocket.getInetAddress().toString());
+            displayMessage(disconnectMsg.toString());
+            broadcasting(disconnectMsg);
         }
     }
 

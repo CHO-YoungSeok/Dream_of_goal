@@ -15,8 +15,8 @@ public class MultiClientGUI extends JFrame {
     JButton b_send;
     JButton b_exit;
     Socket socket;
-    Writer out;
-    Reader in;
+    ObjectOutputStream out;
+    ObjectInputStream in;
     JTextField t_userID;
     JTextField t_serverAddress;
     JTextField t_serverPort;
@@ -87,29 +87,32 @@ public class MultiClientGUI extends JFrame {
     }
 
     private void receiveMessage() {
-        String message;
+        Message message;
         try {
-            while ((message = ((BufferedReader) in).readLine()) != null) {
-                displayMessage(message);
+            while ((message = (Message) in.readObject()) != null) {
+                displayMessage(message.toString());
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
+        } catch (ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException: " + e.getMessage());
         }
     }
 
     public void sendMessage() {
-        String message = t_input.getText();
-        if (message.isEmpty()) {
+        String text = t_input.getText();
+        if (text.isEmpty()) {
             return;
         }
 
+        Message message = new Message(Message.MessageType.CHAT, t_userID.getText(), text);
         try {
-            out.write(message + "\n");
+            out.writeObject(message);
             out.flush();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        displayMessage("나: " + message);
+        displayMessage("나: " + text);
     }
 
     private void displayMessage(String message) {
@@ -170,9 +173,12 @@ public class MultiClientGUI extends JFrame {
     private void connectToServer() {
         try {
             socket = new Socket(t_serverAddress.getText(), Integer.parseInt(t_serverPort.getText()));
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-            out.write(t_userID.getText() + "\n");
+            out = new ObjectOutputStream(socket.getOutputStream());
+            out.flush();
+            in = new ObjectInputStream(socket.getInputStream());
+
+            Message connectMsg = new Message(Message.MessageType.CONNECT, t_userID.getText(), "");
+            out.writeObject(connectMsg);
             out.flush();
 
             Thread receiveThread = new Thread( () -> {
