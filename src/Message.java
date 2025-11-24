@@ -38,7 +38,6 @@ public class Message implements Serializable {
     }
     public int getStrick() { return strike; }
     public int getBall() { return ball; }
-    public void setResult(int s, int b) { this.strike = s; this.ball = b; }
 
     // 숫자야구 결과 저장
     public void setResult(int strike, int ball) {
@@ -55,7 +54,7 @@ public class Message implements Serializable {
             case CHAT:
                 return userId + ": " + content;
             case RESULT:
-                return userID + ": " + content + " (" + strike + "S " + bal + "B)";
+                return userId + ": " + content + " (" + strike + "S " + ball + "B)";
             case START_GAME:
                 return "[START GAME]" + content;
             case DISCONNECT:
