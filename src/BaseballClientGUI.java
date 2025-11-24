@@ -6,7 +6,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-public class MultiClientGUI extends JFrame {
+public class BaseballClientGUI extends JFrame {
 
     JTextArea t_display;
     JTextField t_input;
@@ -197,7 +197,7 @@ public class MultiClientGUI extends JFrame {
         }
     }
 
-    MultiClientGUI() {
+    BaseballClientGUI() {
         setTitle("Multi ClientGUI");
         buildGUI();
         setBounds(200, 100, 600, 450);
@@ -206,7 +206,7 @@ public class MultiClientGUI extends JFrame {
     }
 
     public static void main(String[] args) {
-        new MultiClientGUI();
+        new BaseballClientGUI();
     }
 
 }
