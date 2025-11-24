@@ -8,16 +8,18 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-public class MultiServerGUI extends JFrame {
+public class BaseballServerGUI extends JFrame {
     int port = 54321;
     Thread serverThread;
-    JTextArea t_display;
     ServerSocket serverSocket;
-    JButton b_serverStart;
-    JButton b_serverClose;
-    JButton b_exit;
-    Map<ClientHandler, String> AnswerKeyMap = new HashMap<>();
 
+    JTextArea t_display;
+    JButton b_serverStart, b_serverClose, b_exit;
+
+    // 방 관리
+    Map<ClientHandler, String> roomMap = new HashMap<>();
+
+    // Client Handler
     class ClientHandler implements Runnable {
         static private final Set<ClientHandler> clientHandlers = new HashSet<>();
 
