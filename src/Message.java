@@ -26,6 +26,11 @@ public class Message implements Serializable {
         this.content = content;
     }
 
+    public Message(MessageType type, String userId) {
+        this.type = type;
+        this.userId = userId;
+    }
+
     // Getter / Setter
     public String getUserId() {
         return userId;
@@ -38,6 +43,30 @@ public class Message implements Serializable {
     }
     public int getStrick() { return strike; }
     public int getBall() { return ball; }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public void setType(MessageType type) {
+        this.type = type;
+    }
+
+    public int getStrike() {
+        return strike;
+    }
+
+    public void setStrike(int strike) {
+        this.strike = strike;
+    }
+
+    public void setBall(int ball) {
+        this.ball = ball;
+    }
 
     // 숫자야구 결과 저장
     public void setResult(int strike, int ball) {
