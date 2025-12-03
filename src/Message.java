@@ -1,5 +1,3 @@
-// 2271439 조영석
-
 import java.io.Serializable;
 
 public class Message implements Serializable {
