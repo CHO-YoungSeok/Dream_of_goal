@@ -325,7 +325,7 @@ public class BaseballClientGUI extends JFrame {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-                ImageIcon background = new ImageIcon("src/image/baseball_field.jpg");
+                ImageIcon background = new ImageIcon("src/image/intro.jpg");
                 Image img = background.getImage();
                 g.drawImage(img, 0, 0, getWidth(), getHeight(), this);
             }
@@ -692,7 +692,7 @@ public class BaseballClientGUI extends JFrame {
         setTitle("Multi ClientGUI");
         loadConnectionInfo();
         buildGUI();
-        setBounds(200, 100, 800, 650);
+        setBounds(400, 100, 550, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setVisible(true);
     }
