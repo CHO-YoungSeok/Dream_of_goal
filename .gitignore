@@ -1,7 +1,8 @@
 ### IntelliJ IDEA ###
-ExpClientGUI.md
 
+server_data
 src/*.class
+GEMINI.md
 
 out/
 !**/src/main/**/out/

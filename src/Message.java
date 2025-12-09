@@ -28,6 +28,8 @@ public class Message implements Serializable {
         CREATE_ROOM_RESPONSE,   // 방 생성 응답 (S → C)
         JOIN_ROOM_REQUEST,      // 방 입장 요청 (C → S)
         JOIN_ROOM_RESPONSE,     // 방 입장 응답 (S → C)
+        JOIN_AS_SPECTATOR,      // 관전자로 입장 (C → S) - Phase 2
+        SPECTATOR_LIST_UPDATE,  // 관전자 목록 업데이트 (S → C) - Phase 2
         LEAVE_ROOM,             // 방 나가기 (C → S)
         ROOM_INFO_UPDATE,       // 방 정보 업데이트 (S → C)
         KICK_PLAYER,            // 강제 퇴장 (C → S) - Phase 2
@@ -169,6 +171,8 @@ public class Message implements Serializable {
         WRONG_PASSWORD(2004, "비밀번호가 일치하지 않습니다"),
         NOT_ENOUGH_PLAYERS(2005, "인원이 부족합니다"),
         NOT_ROOM_MASTER(2006, "방장만 게임을 시작할 수 있습니다"),
+        SPECTATOR_NOT_ALLOWED(2007, "관전이 허용되지 않은 방입니다"),
+        CANNOT_KICK_PLAYER(2008, "플레이어를 강제 퇴장시킬 수 없습니다"),
 
         // 게임 관련 (3xxx)
         TURN_TIMEOUT(3001, "입력 시간이 초과되었습니다"),
@@ -246,6 +250,13 @@ public class Message implements Serializable {
     // 준비 상태
     private boolean isReady;            // 준비 완료 여부
 
+    // 관전 모드 (Phase 2)
+    private boolean isSpectator;        // 관전자 여부
+    private boolean allowSpectators;    // 관전 허용 여부
+
+    // 강제 퇴장 (Phase 2)
+    private String targetPlayerId;      // 강제 퇴장 대상 플레이어 ID
+
     // 에러 관련
     private ErrorCode errorCode;        // 에러 코드
     private String errorMessage;        // 에러 메시지
@@ -320,12 +331,45 @@ public class Message implements Serializable {
     }
 
     /**
+     * 방 생성 요청 메시지 생성 (관전 허용 옵션 포함) - Phase 2
+     */
+    public static Message createCreateRoomRequest(String userId, String roomName,
+            GameMode gameMode, Difficulty difficulty, TurnTimeLimit turnTimeLimit,
+            boolean isPrivate, String roomPassword, boolean allowSpectators) {
+        Message msg = createCreateRoomRequest(userId, roomName, gameMode, difficulty,
+                turnTimeLimit, isPrivate, roomPassword);
+        msg.allowSpectators = allowSpectators;
+        return msg;
+    }
+
+    /**
      * 방 입장 요청 메시지 생성
      */
     public static Message createJoinRoomRequest(String userId, int roomId, String roomPassword) {
         Message msg = new Message(MessageType.JOIN_ROOM_REQUEST, userId);
         msg.roomId = roomId;
         msg.roomPassword = roomPassword;
+        return msg;
+    }
+
+    /**
+     * 관전자로 입장 요청 메시지 생성
+     */
+    public static Message createJoinAsSpectatorRequest(String userId, int roomId, String roomPassword) {
+        Message msg = new Message(MessageType.JOIN_AS_SPECTATOR, userId);
+        msg.roomId = roomId;
+        msg.roomPassword = roomPassword;
+        msg.isSpectator = true;
+        return msg;
+    }
+
+    /**
+     * 강제 퇴장 요청 메시지 생성
+     */
+    public static Message createKickPlayerRequest(String userId, int roomId, String targetPlayerId) {
+        Message msg = new Message(MessageType.KICK_PLAYER, userId);
+        msg.roomId = roomId;
+        msg.targetPlayerId = targetPlayerId;
         return msg;
     }
 
@@ -475,6 +519,15 @@ public class Message implements Serializable {
 
     public boolean isReady() { return isReady; }
     public void setReady(boolean isReady) { this.isReady = isReady; }
+
+    public boolean isSpectator() { return isSpectator; }
+    public void setSpectator(boolean isSpectator) { this.isSpectator = isSpectator; }
+
+    public boolean isAllowSpectators() { return allowSpectators; }
+    public void setAllowSpectators(boolean allowSpectators) { this.allowSpectators = allowSpectators; }
+
+    public String getTargetPlayerId() { return targetPlayerId; }
+    public void setTargetPlayerId(String targetPlayerId) { this.targetPlayerId = targetPlayerId; }
 
     public ErrorCode getErrorCode() { return errorCode; }
     public void setErrorCode(ErrorCode errorCode) { this.errorCode = errorCode; }
