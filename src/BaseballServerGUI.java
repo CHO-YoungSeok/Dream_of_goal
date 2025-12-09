@@ -20,18 +20,55 @@ public class BaseballServerGUI extends JFrame {
     private JTextArea t_display;
     private JButton b_start, b_stop;
 
-    private final List<ClientHandler> clientHandlers = new CopyOnWriteArrayList<>();
+    // 접속한 클라이언트 관리
+    private Vector<ClientHandler> clients = new Vector<>();
+
+    // 방 관리
+    private Vector<GameRoom> rooms = new Vector<>();
+    private int nextRoomId = 1;
+
+    // 데이터 파일 경로
+    private static final String USERS_FILE = "server_data/users.csv"; // 회원 정보
+    private static final String STATS_FILE = "server_data/user_stats.csv"; // 전적 정보
+    private static final String HISTORY_FILE = "server_data/game_history.csv"; // 게임 이력
+    private static final String DETAILS_FILE = "server_data/game_details.csv"; // 게임 상세 기록
 
     public BaseballServerGUI(int port) {
         super("Baseball Game Server");
-
         this.port = port;
 
-        buildGUI();
+        initDataFiles();
 
+        buildGUI();
         setSize(600, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setVisible(true);
+    }
+
+    // 데이터 파일 초기화
+    private void initDataFiles() {
+        new File("server_data").mkdirs();
+
+        // 파일이 없으면 헤더와 함께 생성
+        createFileIfNotExists(USERS_FILE, "user_id, password, character\n");
+        createFileIFNotExists(STATS_FILE, "user_id, wins, looses, draws, win_rate\n ");
+        createFileIFNotExists(HISTORY_FILE, "game_id, timestamp, participants, game_mode, difficulty, winner\n");
+        createFileIFNotExists(DETAILS_FILE, "game_id, round, player_id, guess, result\n");
+    }
+
+    // 파일이 없으면 생성
+    private void createFileIfNotExists(String filePath, String header) {
+        File file = new File(filePath);
+        if(!file.exists()) {
+            try{
+                FileWriter fw = new FileWriter(filePath);
+                fw.write(header);
+                fw.close();
+                printDisplay("파일 생성: " + filePath);
+            } catch (IOException e) {
+                printDisplay("파일 생성 실패: " + filePath);
+            }
+        }
     }
 
     private void buildGUI() {
@@ -52,7 +89,6 @@ public class BaseballServerGUI extends JFrame {
                 startServer();
             }
         });
-
         b_stop.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -65,66 +101,48 @@ public class BaseballServerGUI extends JFrame {
         add(btnPanel, BorderLayout.SOUTH);
     }
 
+    // 서버 시작
     private void startServer() {
-        acceptThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try{
-                    serverSocket = new ServerSocket(port);
-                    printDisplay("서버 시작 (포트: " + port + ")");
+        acceptThread = new Thread(() -> {
+            try{
+                serverSocket = new ServerSocket(port);
+                printDisplay("서버 시작 (포트: " + port + ")");
 
-                    b_start.setEnabled(false);
-                    b_stop.setEnabled(true);
+                b_start.setEnabled(false);
+                b_stop.setEnabled(true);
 
-                    while(acceptThread == Thread.currentThread()) {
-                        Socket socket = serverSocket.accept();
-                        printDisplay("클라이언트 연결: " + socket.getInetAddress());
+                while(true) {
+                    Socket socket = serverSocket.accept();
+                    printDisplay("클라이언트 연결: " + socket.getInetAddress());
 
-                        // ClientHandler 생성 및 실행
-                        ClientHandler handler = new ClientHandler(socket);
-                        new Thread(handler).start();
-                    }
-
-                } catch(SocketException se) {
-
-                } catch(IOException e) {
-                    printDisplay("서버 오류: " + e.getMessage());
-                } finally {
-                    // 루프 종료 후 정리
-                    stopServerLogic();
+                    ClientHandler handler = new ClientHandler(socket);
+                    clients.add(handler);
+                    new Thread(handler).start();
                 }
+            } catch(IOException e) {
+                printDisplay("서버 종료됨");
             }
-        }, "AcceptThread");
-
+        });
         acceptThread.start();
     }
 
+    // 서버 중지
     private void stopServer() {
-        // 클라이언트 연결 먼저 종료
-        for(ClientHandler handler : clientHandlers) {
-            handler.closeConnection();
-        }
-        clientHandlers.clear();
-
-        stopServerLogic();
-    }
-
-    private void stopServerLogic() {
         try{
-            if (acceptThread != null) {
-                acceptThread = null;
+            for(ClientHandler client : clients) {
+                client.close();
             }
+            clients.clear();
 
-            if(serverSocket != null && !serverSocket.isClosed()){
+            if(serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
             }
 
             printDisplay("서버 중지");
             b_stop.setEnabled(false);
             b_start.setEnabled(true);
-
-        }catch (IOException e) {
-            printDisplay("서버 종류 오류: " + e.getMessage());
+        } catch(IOException e) {
+            printDisplay("서버 종료 오류: " + e.getMessage());
         }
     }
 
@@ -132,6 +150,194 @@ public class BaseballServerGUI extends JFrame {
         t_display.append(msg + "\n");
         t_display.setCaretPosition(t_display.getDocument().getLength());
     }
+
+    // --- 인증 관련 ---
+
+    // 회원가입
+    private boolean registerUser(String userId, String password, String character) {
+        // ID 중복 체크
+        if (!isUserExists(userId)) {
+            return false;
+        }
+
+        // users.csv에 저장
+        try{
+            FileWriter fw = new FileWriter(USERS_FILE, true);
+            fw.write(userId, + "," + password + "," + character + "\n");
+            fw.close();
+
+            // 전적 초기화
+            FilwWriter statsFw = new FileWriter(STATS_FILE, true);
+            statsFw.write(userId, ",0,0,0,0.0\n");
+            statsFww.close();
+
+            return true;
+        } catch (IOException e) {
+            printDisplay("회원가입 저장 실패: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // ID 중복 확인
+    private boolean isUserExists(String userId) {
+        try {
+            File file = new File(USERS_FILE);
+            if(!file.exists()) {
+                return false;
+            }
+
+            BufferedReader br = new BufferedReader(new FileReader(USERS_FILE));
+            String line;
+            while((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if(parts[0].equals(userId)) {
+                    br.close();
+                    return true;
+                }
+            }
+            br.close();
+        }catch(IOException e) {
+            printDisplay("파일 읽기 오류: " + e.getMessage());
+        }
+        return false;
+    }
+
+    // 로그인 인증
+    private boolean authenticateUser(String userId, String password) {
+        try{
+            File file = new File(USERS_FILE);
+            if(!file.exists()) {
+                return false;
+            }
+
+            BufferedReader br = new BufferedReader(new FileReader(USERS_FILE));
+            String line;
+            while((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if(parts[0].equals(userId) && parts[1].equals(password)) {
+                    br.close();
+                    return true;
+                }
+            }
+            br.close();
+        } catch(IOException e) {
+            printDisplay("인증 오류: " + e.getMessage());
+        }
+        return false;
+    }
+
+    // 중목 로그인 체크
+    private boolean isAlreadyLoggedIn(String userId) {
+        for(ClientHandler client : clients) {
+            if(client.userId != null && client.userId.equals(userId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // --- 방 관련 ---
+    private GameRoom createRoom(String roomName, String masterUserId, Massage.GameMode gameMode,
+                                Message.Difficulty difficulty, Massage.TurnTimeLimit turnTimeLimit) {
+        if(rooms.size() >= 20){
+            return null;
+        }
+
+        GamrRoom room = new GameRoom(nextRoodId++, roomName, masterUserId, gameMode, difficulty, turnTimeLimit);
+
+        rooms.add(room);
+        printDisplay("방 생성: [" + room.roomId + "] " + roomName);
+        return room;
+    }
+
+    // 방 찾기
+    private GameRoom findRoom(int roomId) {
+        for(GameRoom room : rooms) {
+            if(room.roomId == roomId) {
+                return room;
+            }
+        }
+        return null;
+    }
+
+    // 방 삭제
+    private void removeRoom(GameRoom room) {
+        rooms.remove(room);
+        printDisplay("방 삭제: [" + room.roomId + "]");
+    }
+
+    // --- 게임 로직 ---
+    // 정답 생성(1~9 중 중복 없이)
+    private String generateAnswer(int digitCount) {
+        Vector<Integer> numbers = new Vector<>();
+        for(int i = 1; i <= 9; i++){
+            numbers.add(i);
+        }
+
+        // 섞기
+        for(int i = 0; i < numbers.size(); i++) {
+            int randomIdx = (int)(Math.random() * numbers.size());
+            int temp = numbers.get(i);
+            numbers.set(i, numbers.get(randomIdx));
+            numbers.set(randomIdx, temp);
+        }
+
+        // 필요한 자릿수만큼 추출
+        String answer = "";
+        for(int i = 0; i < digitCount; i++) {
+            answer += numbers.get(i);
+        }
+        return answer;
+    }
+
+    // 스트라이크, 볼 계산
+    private int[] calculateResult(String target, String guess) {
+        int strike = 0;
+        int ball = 0;
+
+        for(int i = 0; i < target.length(); i++) {
+            char targetChar = target.charAt(i);
+            char guessChar = guess.charAt(i);
+
+            if(targetChar == guessChar) {
+                strike++;
+            } else if(target.indexOf(guessChar) >= 0) {
+                ball++;
+            }
+        }
+        return new int[]{strike, ball};
+    }
+
+    // 입력 검증
+    private boolean isValidGuess(String guess, int digitCount) {
+        // 길이 체크
+        if (guess.length() != digitCount) {
+            return false;
+        }
+
+        // 숫자인지 체크 & 중복 체크
+        boolean[] used = new boolean[10];
+        for(int i = 0; i < guess.lenth(); i++) {
+            char c = guess.charAt(i);
+
+            // 숫자가 아니거나 0이면 false
+            if(c < '1' || c > '9') {
+                return false;
+            }
+
+            // 중복체크
+            int digit = c -'0';
+            if(used[digit]) {
+                return false;
+            }
+            used[digit] = true;
+        }
+        return true;
+    }
+
+
+
+    // -------------------------
 
     // 모든 클라이언트에게 브로드캐스트
     private void broadcasting(Message msg) {
