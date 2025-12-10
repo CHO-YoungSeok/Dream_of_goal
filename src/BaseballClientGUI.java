@@ -666,7 +666,7 @@ public class BaseballClientGUI extends JFrame {
 
         // Validate guess
         if (!isValidGuess(guess)) {
-            showToast(String.format("중복 없이 %d자리 숫자만 입력하세요 (1~9)", digitCount));
+            showToast(String.format("중복 없이 %d자리 숫자만 입력하세요 (0~9)", digitCount));
             return;
         }
 
@@ -693,13 +693,6 @@ public class BaseballClientGUI extends JFrame {
         // Check if all digits
         if (!guess.matches("\\d+")) {
             return false;
-        }
-
-        // Check range (1-9, no 0)
-        for (char c : guess.toCharArray()) {
-            if (c == '0') {
-                return false;
-            }
         }
 
         // Check for duplicates
@@ -1180,7 +1173,7 @@ public class BaseballClientGUI extends JFrame {
         while (true) {
             String answer = JOptionPane.showInputDialog(
                 this,
-                String.format("정답 숫자를 입력하세요 (%d자리, 1~9, 중복 불가)", digitCount),
+                String.format("정답 숫자를 입력하세요 (%d자리, 0~9, 중복 불가)", digitCount),
                 "정답 입력",
                 JOptionPane.PLAIN_MESSAGE
             );
@@ -1195,7 +1188,7 @@ public class BaseballClientGUI extends JFrame {
             } else {
                 JOptionPane.showMessageDialog(
                     this,
-                    String.format("%d자리 숫자여야 하며, 중복 없이 1~9 범위여야 합니다", digitCount),
+                    String.format("%d자리 숫자여야 하며, 중복 없이 0~9 범위여야 합니다", digitCount),
                     "잘못된 입력",
                     JOptionPane.ERROR_MESSAGE
                 );
@@ -1208,7 +1201,7 @@ public class BaseballClientGUI extends JFrame {
      */
     private String generateRandomAnswer() {
         java.util.List<Integer> digits = new java.util.ArrayList<>();
-        for (int i = 1; i <= 9; i++) {
+        for (int i = 0; i <= 9; i++) {
             digits.add(i);
         }
         java.util.Collections.shuffle(digits);
@@ -1229,13 +1222,6 @@ public class BaseballClientGUI extends JFrame {
         // Check if all characters are digits
         if (!key.matches("\\d+")) {
             return false;
-        }
-
-        // Check range (1-9, no 0)
-        for (char c : key.toCharArray()) {
-            if (c == '0') {
-                return false;
-            }
         }
 
         // Check for duplicates

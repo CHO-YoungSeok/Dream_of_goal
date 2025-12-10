@@ -3,6 +3,7 @@
 server_data
 src/*.class
 GEMINI.md
+.gemini
 
 out/
 !**/src/main/**/out/
