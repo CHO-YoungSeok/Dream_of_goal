@@ -3,23 +3,30 @@ import java.awt.*;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.*;
+import java.util.Hashtable;
+import java.util.Vector;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 public class BaseballServerGUI extends JFrame {
     private int port = 54321;
     private ServerSocket serverSocket;
+    private Thread acceptThread;
 
-    // GUI 컴포넌트
     private JTextArea t_display;
     private JButton b_start, b_stop;
 
     // 접속한 클라이언트 관리
-    private Vector<ClientHandler> clients = new Vector<>();
-    private int maxClients = 10; // 최대 동시 접속자 수
+    private final Vector<ClientHandler> clients = new Vector<>();
+    private final int maxClients = 100; // 최대 동시 접속자 수
 
-    // 방 관리 (방번호 -> 방객체)
-    private Vector<GameRoom> rooms = new Vector<>();
+    // 방 관리
+    private final Vector<GameRoom> rooms = new Vector<>();
     private int nextRoomId = 1;
+    private final int maxRooms = 20;
+
+    // CSV 파싱을 위한 정규 표현식
+    private static final String CSV_SPLIT_REGEX = ",(?=([^\"]*\"[^\"]*\")*[^\"]*$)";
 
     // 데이터 파일 경로
     private static final String USERS_FILE = "server_data/users.csv";
@@ -31,7 +38,6 @@ public class BaseballServerGUI extends JFrame {
         super("Baseball Game Server");
         this.port = port;
 
-        // 데이터 디렉토리 및 파일 초기화
         initDataFiles();
 
         buildGUI();
@@ -42,27 +48,29 @@ public class BaseballServerGUI extends JFrame {
 
     // 데이터 파일 초기화
     private void initDataFiles() {
+
         // 디렉토리 생성
         new File("server_data").mkdirs();
 
-        // 파일이 없으면 헤더와 함께 생성
+        // 파일이 없으면 헤더와 함까 생성
         createFileIfNotExists(USERS_FILE, "user_id,password,character\n");
         createFileIfNotExists(STATS_FILE, "user_id,wins,losses,draws,win_rate\n");
         createFileIfNotExists(HISTORY_FILE, "game_id,timestamp,participants,game_mode,difficulty,winner\n");
         createFileIfNotExists(DETAILS_FILE, "game_id,round,player_id,guess,result\n");
+
     }
 
     // 파일이 없으면 생성
     private void createFileIfNotExists(String filePath, String header) {
         File file = new File(filePath);
-        if (!file.exists()) {
+        if(!file.exists()) {
             try {
                 FileWriter fw = new FileWriter(filePath);
                 fw.write(header);
                 fw.close();
-                printDisplay("파일 생성: " + filePath);
+                printDisplay("파일 생성: " +filePath);
             } catch (IOException e) {
-                printDisplay("파일 생성 실패: " + filePath);
+                printDisplay("파일 생성 실패: " + filePath + " - " + e.getMessage());
             }
         }
     }
@@ -94,15 +102,17 @@ public class BaseballServerGUI extends JFrame {
                 serverSocket = new ServerSocket(port);
                 printDisplay("서버 시작 (포트: " + port + ")");
 
-                b_start.setEnabled(false);
-                b_stop.setEnabled(true);
+                SwingUtilities.invokeLater(() -> {
+                    b_start.setEnabled(false);
+                    b_stop.setEnabled(true);
+                });
 
                 // 클라이언트 접속 대기
-                while (true) {
+                while(!serverSocket.isClosed()) {
                     Socket socket = serverSocket.accept();
 
                     // 최대 접속자 수 체크
-                    if (clients.size() >= maxClients) {
+                    if(clients.size() >= maxClients) {
                         printDisplay("최대 접속자 수 초과. 연결 거부: " + socket.getInetAddress());
                         ObjectOutputStream tempOut = new ObjectOutputStream(socket.getOutputStream());
                         tempOut.writeObject(Message.createErrorMessage(Message.ErrorCode.SERVER_FULL));
@@ -114,10 +124,9 @@ public class BaseballServerGUI extends JFrame {
                     printDisplay("클라이언트 연결: " + socket.getInetAddress());
 
                     ClientHandler handler = new ClientHandler(socket);
-                    clients.add(handler);
                     new Thread(handler).start();
                 }
-            } catch (IOException e) {
+            } catch(IOException e) {
                 printDisplay("서버 종료됨");
             }
         });
@@ -139,8 +148,10 @@ public class BaseballServerGUI extends JFrame {
             }
 
             printDisplay("서버 중지");
-            b_stop.setEnabled(false);
-            b_start.setEnabled(true);
+            SwingUtilities.invokeLater(() -> {
+                b_stop.setEnabled(false);
+                b_start.setEnabled(true);
+            });
         } catch (IOException e) {
             printDisplay("서버 종료 오류: " + e.getMessage());
         }
@@ -148,15 +159,16 @@ public class BaseballServerGUI extends JFrame {
 
     // 로그 출력
     private void printDisplay(String msg) {
-        t_display.append(msg + "\n");
-        t_display.setCaretPosition(t_display.getDocument().getLength());
+        SwingUtilities.invokeLater(() -> {
+            t_display.append(msg + "\n");
+            t_display.setCaretPosition(t_display.getDocument().getLength());
+        });
     }
 
-    // ==================== 인증 관련 메서드 ====================
+    // --- 인증 관련 메서드 ---
 
     // 회원가입
     private boolean registerUser(String userId, String password, String character) {
-        // ID 중복 체크
         if (isUserExists(userId)) {
             return false;
         }
@@ -173,7 +185,7 @@ public class BaseballServerGUI extends JFrame {
             statsFw.close();
 
             return true;
-        } catch (IOException e) {
+        } catch(IOException e) {
             printDisplay("회원가입 저장 실패: " + e.getMessage());
             return false;
         }
@@ -185,18 +197,17 @@ public class BaseballServerGUI extends JFrame {
             File file = new File(USERS_FILE);
             if (!file.exists()) {
                 return false;
-            }
+        }
 
             BufferedReader br = new BufferedReader(new FileReader(USERS_FILE));
+            br.readLine();
             String line;
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split(",");
-                if (parts[0].equals(userId)) {
-                    br.close();
+                if (parts.length > 0 && parts[0].trim().equals(userId)) {
                     return true;
                 }
             }
-            br.close();
         } catch (IOException e) {
             printDisplay("파일 읽기 오류: " + e.getMessage());
         }
@@ -212,15 +223,14 @@ public class BaseballServerGUI extends JFrame {
             }
 
             BufferedReader br = new BufferedReader(new FileReader(USERS_FILE));
+            br.readLine();
             String line;
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split(",");
-                if (parts[0].equals(userId) && parts[1].equals(password)) {
-                    br.close();
+                if (parts.length >= 2 && parts[0].trim().equals(userId) && parts[1].trim().equals(password)) {
                     return true;
                 }
             }
-            br.close();
         } catch (IOException e) {
             printDisplay("인증 오류: " + e.getMessage());
         }
@@ -229,15 +239,15 @@ public class BaseballServerGUI extends JFrame {
 
     // 중복 로그인 체크
     private boolean isAlreadyLoggedIn(String userId) {
-        for (ClientHandler client : clients) {
-            if (client.userId != null && client.userId.equals(userId)) {
+        for(ClientHandler client : clients) {
+            if(client.userId != null && client.userId.equals(userId)){
                 return true;
             }
         }
         return false;
     }
 
-    // ==================== 방 관련 메서드 ====================
+    // --- 방 관련 메서드 ---
 
     // 방 생성
     private GameRoom createRoom(String roomName, String masterUserId,
@@ -248,7 +258,7 @@ public class BaseballServerGUI extends JFrame {
             return null; // 최대 5개 제한
         }
 
-        GameRoom room = new GameRoom(nextRoomId++, roomName, masterUserId,
+        GameRoom room = new GameRoom(nextRoomId ++, roomName, masterUserId,
                 gameMode, difficulty, turnTimeLimit, isPrivate, roomPassword);
         rooms.add(room);
         printDisplay("방 생성: [" + room.roomId + "] " + roomName);
@@ -257,7 +267,7 @@ public class BaseballServerGUI extends JFrame {
 
     // 방 찾기
     private GameRoom findRoom(int roomId) {
-        for (GameRoom room : rooms) {
+        for(GameRoom room : rooms) {
             if (room.roomId == roomId) {
                 return room;
             }
@@ -271,22 +281,15 @@ public class BaseballServerGUI extends JFrame {
         printDisplay("방 삭제: [" + room.roomId + "]");
     }
 
-    // ==================== 게임 로직 ====================
-
-    // 정답 생성 (1~9 중 중복 없이)
+    // --- 게임 로직 ---
+    // 정답 생성 (1 ~ 9 중 중복 없이)
     private String generateAnswer(int digitCount) {
         Vector<Integer> numbers = new Vector<>();
-        for (int i = 1; i <= 9; i++) {
+        for(int i = 1; i <= 9; i++) {
             numbers.add(i);
         }
 
-        // 섞기 (Fisher-Yates shuffle 알고리즘)
-        for (int i = 0; i < numbers.size(); i++) {
-            int randomIdx = (int)(Math.random() * numbers.size());
-            int temp = numbers.get(i);
-            numbers.set(i, numbers.get(randomIdx));
-            numbers.set(randomIdx, temp);
-        }
+        java.util.Collections.shuffle(numbers); // 자바 Collection의 shuffle 사용
 
         // 필요한 자릿수만큼 추출
         String answer = "";
@@ -301,24 +304,23 @@ public class BaseballServerGUI extends JFrame {
         int strike = 0;
         int ball = 0;
 
-        for (int i = 0; i < target.length(); i++) {
+        for(int i = 0; i < target.length(); i++) {
             char targetChar = target.charAt(i);
             char guessChar = guess.charAt(i);
 
-            if (targetChar == guessChar) {
+            if(targetChar == guessChar) {
                 strike++;
-            } else if (target.indexOf(guessChar) >= 0) {
+            } else if(target.indexOf(guessChar) >= 0) {
                 ball++;
             }
         }
-
         return new int[]{strike, ball};
     }
 
     // 입력 검증
     private boolean isValidGuess(String guess, int digitCount) {
         // 길이 체크
-        if (guess.length() != digitCount) {
+        if(guess == null || guess.length() != digitCount) {
             return false;
         }
 
@@ -327,7 +329,7 @@ public class BaseballServerGUI extends JFrame {
         for (int i = 0; i < guess.length(); i++) {
             char c = guess.charAt(i);
 
-            // 숫자가 아니거나 0이면 false
+            // 슷자가 아니거나 0이면 false
             if (c < '1' || c > '9') {
                 return false;
             }
@@ -339,21 +341,19 @@ public class BaseballServerGUI extends JFrame {
             }
             used[digit] = true;
         }
-
         return true;
     }
 
-    // ==================== 내부 클래스: GameRoom ====================
-
+    // --- 내부 클래스: GameRoom ---
     class GameRoom {
-        int roomId;
-        String roomName;
-        String roomMaster;
-        Message.GameMode gameMode;
-        Message.Difficulty difficulty;
-        Message.TurnTimeLimit turnTimeLimit;
-        boolean isPrivate;
-        String roomPassword;
+        int roomId; // 방 번호
+        String roomName; // 방 이름
+        String roomMaster; // 방장 ID
+        Message.GameMode gameMode; // 게임 모드
+        Message.Difficulty difficulty; // 난이도
+        Message.TurnTimeLimit turnTimeLimit; // 턴 제한 시간
+        boolean isPrivate; // 비공개 방 여부
+        String roomPassword; // 방 비밀번호
 
         Vector<ClientHandler> players = new Vector<>();
         Hashtable<String, Boolean> readyStatus = new Hashtable<>();
@@ -361,7 +361,7 @@ public class BaseballServerGUI extends JFrame {
         // 게임 진행 상태
         boolean isGameRunning = false;
         Hashtable<String, String> playerAnswers = new Hashtable<>();
-        Hashtable<String, Integer> playerTeams = new Hashtable<>(); // 플레이어 -> 팀번호 (1 or 2)
+        Hashtable<String, Integer> playerTeams = new Hashtable<>(); // 플레이어 -> 팀번호
         int currentRound = 1;
         boolean isTopHalf = true; // true: 초공, false: 말공
         String gameId; // 게임 기록용 ID
@@ -377,6 +377,32 @@ public class BaseballServerGUI extends JFrame {
             this.turnTimeLimit = turnTimeLimit;
             this.isPrivate = isPrivate;
             this.roomPassword = roomPassword;
+        }
+
+        // 클라이언트가 기대하는 상세 방 정보
+        public Message createRoomUpdateMessage(String content) {
+            Message msg = new Message(Message.MessageType.ROOM_INFO_UPDATE, "SERVER", content);
+
+            msg.setRoomId(roomId);
+            msg.setRoomName(roomName);
+            msg.setRoomMaster(roomMaster);
+            msg.setGameMode(gameMode);
+            msg.setDifficulty(difficulty);
+            msg.setTurnTimeLimit(turnTimeLimit);
+            msg.setPrivate(isPrivate);
+            msg.setRoomStatus(isGameRunning ? Message.RoomStatus.IN_GAME : Message.RoomStatus.WAITING);
+            msg.setCurrentPlayers(players.size());
+            msg.setMaxPlayers(gameMode.getMaxPlayers());
+
+            // 클라이언트가 기대하는 Map<String, Object> 형태의 데이터 구성
+            Hashtable<String, Serializable> roomData = new Hashtable<>();
+            // players 리스트에서 userId만 추출
+            Vector<String> playerIds = players.stream().map(p -> p.userId).collect(Collectors.toCollection(Vector::new));
+            roomData.put("players", playerIds);
+            roomData.put("readyStatus", new Hashtable<>(readyStatus));
+
+            msg.setData(roomData);
+            return msg;
         }
 
         // 플레이어 추가
@@ -395,9 +421,8 @@ public class BaseballServerGUI extends JFrame {
                 printDisplay(player.userId + " -> Team " + teamNum);
             }
 
-            Message msg = new Message(Message.MessageType.ROOM_INFO_UPDATE, "SERVER",
-                    player.userId + "님이 입장했습니다.");
-            broadcastToRoom(msg);
+            Message updateMsg = createRoomUpdateMessage(player.userId + "님이 입장하셨습니다.");
+            broadcastToRoom(updateMsg);
             return true;
         }
 
@@ -405,6 +430,7 @@ public class BaseballServerGUI extends JFrame {
         public void removePlayer(ClientHandler player) {
             players.remove(player);
             readyStatus.remove(player.userId);
+            playerTeams.remove(player.userId);
 
             // 방이 비었으면 삭제
             if (players.isEmpty()) {
@@ -415,12 +441,10 @@ public class BaseballServerGUI extends JFrame {
             // 방장이 나가면 위임
             if (player.userId.equals(roomMaster)) {
                 roomMaster = players.get(0).userId;
-                Message msg = new Message(Message.MessageType.ROOM_INFO_UPDATE, "SERVER",
-                        roomMaster + "님이 새로운 방장이 되었습니다.");
+                Message msg = createRoomUpdateMessage(roomMaster + "님이 새로운 방장이 되었습니다.");
                 broadcastToRoom(msg);
             } else {
-                Message msg = new Message(Message.MessageType.ROOM_INFO_UPDATE, "SERVER",
-                        player.userId + "님이 퇴장했습니다.");
+                Message msg = createRoomUpdateMessage(player.userId + "님이 퇴장했습니다.");
                 broadcastToRoom(msg);
             }
         }
@@ -429,24 +453,24 @@ public class BaseballServerGUI extends JFrame {
         public void setReady(String userId, boolean ready) {
             readyStatus.put(userId, ready);
             String msg = userId + "님이 " + (ready ? "준비완료" : "준비취소") + " 했습니다.";
-            broadcastToRoom(new Message(Message.MessageType.READY_STATUS_UPDATE, "SERVER", msg));
+
+            Message statusUpdate = new Message(Message.MessageType.READY_STATUS_UPDATE, "SERVER", msg);
+            statusUpdate.setData(new Hashtable<>(readyStatus));
+            broadcastToRoom(statusUpdate);
         }
 
         // 게임 시작 가능한지 체크
         public boolean canStartGame() {
-            // 인원 체크
+            //인원 체크
             if (players.size() != gameMode.getMaxPlayers()) {
                 return false;
             }
 
             // 방장 제외 모두 준비 완료인지 체크
-            for (int i = 0; i < players.size(); i++) {
-                String userId = players.get(i).userId;
-                if (!userId.equals(roomMaster)) {
-                    Boolean ready = readyStatus.get(userId);
-                    if (ready == null || !ready) {
-                        return false;
-                    }
+            for(ClientHandler player : players) {
+                Boolean ready = readyStatus.get(player.userId);
+                if(ready == null || !ready) {
+                    return false;
                 }
             }
             return true;
@@ -457,25 +481,23 @@ public class BaseballServerGUI extends JFrame {
             isGameRunning = true;
             gameId = "G" + System.currentTimeMillis();
 
-            if (gameMode == Message.GameMode.ONE_VS_ONE) {
+            if (gameMode == Message.GameMode.ONE_VS_ONE){
                 // 1v1: 각 플레이어에게 정답 생성
-                for (int i = 0; i < players.size(); i++) {
-                    ClientHandler player = players.get(i);
-                    String answer = generateAnswer(difficulty.getDigitCount());
+                for (ClientHandler player : players) {
+                    String answer = BaseballServerGUI.this.generateAnswer(difficulty.getDigitCount());
                     playerAnswers.put(player.userId, answer);
-                    printDisplay("게임 시작 - " + player.userId + "의 정답: " + answer);
+                    BaseballServerGUI.this.printDisplay("게임 시작 - " + player.userId + "의 정답: " + answer);
                 }
-            } else {
+            } else{
                 // 2v2: 각 팀에 하나의 정답 생성
-                String team1Answer = generateAnswer(difficulty.getDigitCount());
-                String team2Answer = generateAnswer(difficulty.getDigitCount());
+                String team1Answer = BaseballServerGUI.this.generateAnswer(difficulty.getDigitCount());
+                String team2Answer = BaseballServerGUI.this.generateAnswer(difficulty.getDigitCount());
 
-                for (int i = 0; i < players.size(); i++) {
-                    ClientHandler player = players.get(i);
+                for (ClientHandler player : players) {
                     int teamNum = playerTeams.get(player.userId);
                     String answer = (teamNum == 1) ? team1Answer : team2Answer;
                     playerAnswers.put(player.userId, answer);
-                    printDisplay("게임 시작 - " + player.userId + " (Team " + teamNum + ")의 정답: " + answer);
+                    BaseballServerGUI.this.printDisplay("게임 시작 - " + player.userId + " (Team " + teamNum + ")의 정답: " + answer);
                 }
             }
 
@@ -486,18 +508,29 @@ public class BaseballServerGUI extends JFrame {
             Message startMsg = new Message(Message.MessageType.START_GAME, "SERVER");
             startMsg.setGameMode(gameMode);
             startMsg.setDifficulty(difficulty);
+            startMsg.setTurnTimeLimit(turnTimeLimit);
             startMsg.setContent("게임이 시작되었습니다!");
             broadcastToRoom(startMsg);
 
-            // 턴 정보 전송
+            // 턴 정보 정송
             sendTurnInfo();
+
         }
 
         // 턴 정보 전송
         public void sendTurnInfo() {
+            // 현재 턴 플레이어 결정
+            ClientHandler turnPlayer = null;
+            if(players.size() > 0) {
+                int playerIndex = ((currentRound - 1) * 2 + (isTopHalf ? 0 : 1)) % players.size();
+                turnPlayer = players.get(playerIndex);
+            }
+
+
             Message turnMsg = new Message(Message.MessageType.TURN_INFO, "SERVER");
             turnMsg.setRound(currentRound);
             turnMsg.setTop(isTopHalf);
+            turnMsg.setCurrentTurnPlayer(turnPlayer != null ? turnPlayer.userId : null);
             turnMsg.setContent(currentRound + "회 " + (isTopHalf ? "초" : "말"));
             broadcastToRoom(turnMsg);
         }
@@ -508,45 +541,26 @@ public class BaseballServerGUI extends JFrame {
                 return;
             }
 
+            // 턴 제약 확인(팀전은 팀원 동시 추측 가능 로직이 복잡하므로 1v1 기준으로 간소화(추후 가능하면 구현)
+            if (gameMode == Message.GameMode.ONE_VS_ONE && !player.userId.equals(getCurrentTurnPlayerId())) {
+                player.sendMessage(Message.createErrorMessage(Message.ErrorCode.TURN_TIMEOUT, // 에러 코드 재사용
+                        "당신의 턴이 아닙니다."));
+                return;
+            }
+
             // 입력 검증
-            if (!isValidGuess(guess, difficulty.getDigitCount())) {
+            if (!BaseballServerGUI.this.isValidGuess(guess, difficulty.getDigitCount())) {
                 player.sendMessage(Message.createErrorMessage(
                         Message.ErrorCode.INVALID_INPUT_FORMAT));
                 return;
             }
 
-            String targetAnswer = null;
-
-            if (gameMode == Message.GameMode.ONE_VS_ONE) {
-                // 1v1: 상대방 정답 찾기
-                for (int i = 0; i < players.size(); i++) {
-                    ClientHandler p = players.get(i);
-                    if (!p.userId.equals(player.userId)) {
-                        targetAnswer = playerAnswers.get(p.userId);
-                        break;
-                    }
-                }
-            } else {
-                // 2v2: 상대 팀 정답 찾기
-                int myTeam = playerTeams.get(player.userId);
-                int targetTeam = (myTeam == 1) ? 2 : 1;
-
-                // 상대 팀원 중 아무나의 정답 (팀은 같은 정답 공유)
-                for (int i = 0; i < players.size(); i++) {
-                    ClientHandler p = players.get(i);
-                    if (playerTeams.get(p.userId) == targetTeam) {
-                        targetAnswer = playerAnswers.get(p.userId);
-                        break;
-                    }
-                }
-            }
-
-            if (targetAnswer == null) {
-                return;
-            }
+            // 상대방 정답 찾기
+            String targetAnswer = getTargetAnswer(player);
+            if (targetAnswer == null) return;
 
             // 결과 계산
-            int[] result = calculateResult(targetAnswer, guess);
+            int[] result = BaseballServerGUI.this.calculateResult(targetAnswer, guess);
             int strike = result[0];
             int ball = result[1];
 
@@ -573,8 +587,7 @@ public class BaseballServerGUI extends JFrame {
             // 승리 체크
             if (strike == difficulty.getDigitCount()) {
                 if (gameMode == Message.GameMode.TWO_VS_TWO) {
-                    int winnerTeam = playerTeams.get(player.userId);
-                    endGame(player.userId, false, winnerTeam);
+                    endGame(player.userId, false, playerTeams.get(player.userId));
                 } else {
                     endGame(player.userId, false, 0);
                 }
@@ -585,12 +598,43 @@ public class BaseballServerGUI extends JFrame {
             nextTurn();
         }
 
+        // 현재 천 플레이어 ID 반환
+        public String getCurrentTurnPlayerId() {
+            if (players.isEmpty()) return null;
+            int playerIndex = ((currentRound - 1) * 2 + (isTopHalf ? 0 : 1)) % players.size();
+            return players.get(playerIndex).userId;
+        }
+
+        // 상대방의 정답 키를 찾는 헬퍼 메서드
+        private String getTargetAnswer(ClientHandler currentPlayer) {
+            if (gameMode == Message.GameMode.ONE_VS_ONE) {
+                // 1v1: 상대방 정답 찾기
+                for (ClientHandler p : players) {
+                    if (!p.userId.equals(currentPlayer.userId)) {
+                        return playerAnswers.get(p.userId);
+                    }
+                }
+            } else if (gameMode == Message.GameMode.TWO_VS_TWO) {
+                // 2v2: 상대 팀 정답 찾기
+                int myTeam = playerTeams.get(currentPlayer.userId);
+                int targetTeam = (myTeam == 1) ? 2 : 1;
+
+                // 상대 팀원 중 아무나의 정답 (팀은 같은 정답 공유)
+                for (ClientHandler p : players) {
+                    if (playerTeams.get(p.userId) == targetTeam) {
+                        return playerAnswers.get(p.userId);
+                    }
+                }
+            }
+            return null;
+        }
+
         // 다음 턴
         private void nextTurn() {
             if (isTopHalf) {
-                isTopHalf = false;
+                isTopHalf = false; // 초 -> 말
             } else {
-                isTopHalf = true;
+                isTopHalf = true; // 말 -> 초
                 currentRound++;
             }
 
@@ -606,6 +650,7 @@ public class BaseballServerGUI extends JFrame {
         private void endGame(String winnerId, boolean isDraw, int winnerTeam) {
             isGameRunning = false;
 
+            // 게임 결과 메시지
             Message endMsg = new Message(Message.MessageType.END_GAME, "SERVER");
             if (isDraw) {
                 endMsg.setDraw(true);
@@ -621,16 +666,16 @@ public class BaseballServerGUI extends JFrame {
             }
             broadcastToRoom(endMsg);
 
-            // 게임 기록 저장
+            // 전적 및 게임 기록 저장
             saveGameHistory(winnerId, isDraw, winnerTeam);
 
             // 준비 상태 초기화
-            for (int i = 0; i < players.size(); i++) {
-                readyStatus.put(players.get(i).userId, false);
+            for (ClientHandler player : players) {
+                readyStatus.put(player.userId, false);
             }
         }
 
-        // 게임 기록 저장 (game_history.csv)
+        // 게임 기록 저장 (game_history.csv 및 user_stats.csv 업데이트)
         private void saveGameHistory(String winnerId, boolean isDraw, int winnerTeam) {
             try {
                 String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
@@ -656,9 +701,9 @@ public class BaseballServerGUI extends JFrame {
                         gameMode.getDisplayName() + "," + difficulty.getDisplayName() + "," + winner + "\n");
                 fw.close();
 
-                printDisplay("게임 기록 저장: " + gameId);
+                BaseballServerGUI.this.printDisplay("게임 기록 저장: " + gameId);
             } catch (IOException e) {
-                printDisplay("게임 기록 저장 실패: " + e.getMessage());
+                BaseballServerGUI.this.printDisplay("게임 기록 저장 실패: " + e.getMessage());
             }
         }
 
@@ -669,20 +714,20 @@ public class BaseballServerGUI extends JFrame {
                 fw.write(gameId + "," + round + "," + playerId + "," + guess + "," + result + "\n");
                 fw.close();
             } catch (IOException e) {
-                printDisplay("게임 상세 기록 저장 실패: " + e.getMessage());
+                BaseballServerGUI.this.printDisplay("게임 상세 기록 저장 실패ㅣ " + e.getMessage());
             }
         }
 
         // 방 전체에 메시지 전송
         public void broadcastToRoom(Message msg) {
-            for (int i = 0; i < players.size(); i++) {
-                players.get(i).sendMessage(msg);
+            for (ClientHandler player : players) {
+                player.sendMessage(msg);
             }
         }
     }
 
-    // ==================== 내부 클래스: ClientHandler ====================
 
+    // --- 내부 클래스: ClientHandler ---
     class ClientHandler implements Runnable {
         private Socket socket;
         private ObjectInputStream in;
@@ -701,15 +746,27 @@ public class BaseballServerGUI extends JFrame {
             }
         }
 
-        @Override
         public void run() {
             try {
                 Message msg;
-                while ((msg = (Message) in.readObject()) != null) {
+                // 초기 로그인/회원가입 요청 처리
+                while (userId == null && (msg = (Message) in.readObject()) != null) {
+                    if(msg.getType() == Message.MessageType.LOGIN_REQUEST || msg.getType() == Message.MessageType.REGISTER_REQUEST) {
+                        handleMessage(msg);
+                    } else {
+                        sendMessage(Message.createErrorMessage(Message.ErrorCode.UNKNOWN_ERROR,
+                                "로그인 또는 회원가입 요청만 가능합니다."));
+                    }
+                }
+
+                // 로그인 후 메인 메시지 처리
+                while (userId != null && (msg = (Message) in.readObject()) != null) {
                     handleMessage(msg);
                 }
             } catch (IOException e) {
-                printDisplay(userId + " 연결 종료");
+                if (userId != null) {
+                    printDisplay(userId + " 연결 종료");
+                }
             } catch (ClassNotFoundException e) {
                 printDisplay("메시지 클래스 오류: " + e.getMessage());
             } finally {
@@ -762,6 +819,20 @@ public class BaseballServerGUI extends JFrame {
                 case CHAT_ALL:
                     handleAllChat(msg);
                     break;
+                case CHAT_WHISPER:
+                    handleWhisper(msg);
+                    break;
+                case LOGOUT:
+                    close();
+                    break;
+                case STATS_REQUEST:
+                    handleStatsRequest(msg);
+                    break;
+                case GAME_HISTORY_REQUEST:
+                    handleGameHistoryRequest(msg);
+                    break;
+                default:
+                    printDisplay(userId + "로부터 알 수 없는 메시지 타입 수신: " + msg.getType());
             }
         }
 
@@ -779,6 +850,8 @@ public class BaseballServerGUI extends JFrame {
             // 인증
             if (authenticateUser(userId, password)) {
                 this.userId = userId;
+                clients.add(this);
+
                 Message response = new Message(Message.MessageType.LOGIN_RESPONSE, userId);
                 response.setSuccess(true);
                 response.setContent("로그인 성공");
@@ -789,13 +862,13 @@ public class BaseballServerGUI extends JFrame {
             }
         }
 
-        // 회원가입 처리
+        // 회원 가입 처리
         private void handleRegister(Message msg) {
             String userId = msg.getUserId();
             String password = msg.getPassword();
             String character = msg.getCharacter();
 
-            if (registerUser(userId, password, character)) {
+            if(registerUser(userId, password, character)) {
                 Message response = new Message(Message.MessageType.REGISTER_RESPONSE, userId);
                 response.setSuccess(true);
                 response.setContent("회원가입 성공");
@@ -808,21 +881,20 @@ public class BaseballServerGUI extends JFrame {
 
         // 방 목록 요청 처리
         private void handleRoomListRequest() {
-            Vector<Hashtable<String, Object>> roomList = new Vector<>();
+            Vector<Message> roomList = new Vector<>();
 
-            for (int i = 0; i < rooms.size(); i++) {
-                GameRoom room = rooms.get(i);
-                Hashtable<String, Object> roomInfo = new Hashtable<>();
-                roomInfo.put("roomId", room.roomId);
-                roomInfo.put("roomName", room.roomName);
-                roomInfo.put("roomMaster", room.roomMaster);
-                roomInfo.put("currentPlayers", room.players.size());
-                roomInfo.put("maxPlayers", room.gameMode.getMaxPlayers());
-                roomInfo.put("gameMode", room.gameMode.getDisplayName());
-                roomInfo.put("difficulty", room.difficulty.getDisplayName());
-                roomInfo.put("turnTimeLimit", room.turnTimeLimit.getDisplayName());
-                roomInfo.put("isPrivate", room.isPrivate);
-                roomInfo.put("isGameRunning", room.isGameRunning);
+            for (GameRoom room : rooms) {
+                Message roomInfo = new Message(Message.MessageType.ROOM_LIST_RESPONSE, room.roomMaster);
+                roomInfo.setRoomId(room.roomId);
+                roomInfo.setRoomName(room.roomName + (room.isPrivate ? " 비공개" : ""));
+                roomInfo.setRoomStatus(room.isGameRunning ? Message.RoomStatus.IN_GAME : Message.RoomStatus.WAITING);
+                roomInfo.setCurrentPlayers(room.players.size());
+                roomInfo.setMaxPlayers(room.gameMode.getMaxPlayers());
+                roomInfo.setGameMode(room.gameMode);
+                roomInfo.setDifficulty(room.difficulty);
+                roomInfo.setRoomMaster(room.roomMaster);
+                roomInfo.setPrivate(room.isPrivate);
+
                 roomList.add(roomInfo);
             }
 
@@ -833,6 +905,9 @@ public class BaseballServerGUI extends JFrame {
 
         // 방 생성 처리
         private void handleCreateRoom(Message msg) {
+            // 이미 방에 있으면 생성 불가
+            if (currentRoom != null) return;
+
             GameRoom room = createRoom(
                     msg.getRoomName(),
                     userId,
@@ -847,13 +922,13 @@ public class BaseballServerGUI extends JFrame {
                 currentRoom = room;
                 room.addPlayer(this);
 
-                Message response = new Message(Message.MessageType.CREATE_ROOM_RESPONSE, "SERVER");
+                Message response = room.createRoomUpdateMessage("방 생성 성공");
+                response.setType(Message.MessageType.CREATE_ROOM_RESPONSE);
                 response.setSuccess(true);
-                response.setRoomId(room.roomId);
                 sendMessage(response);
             } else {
-                sendMessage(Message.createErrorMessage(Message.ErrorCode.UNKNOWN_ERROR,
-                        "방 생성 실패 (최대 5개)"));
+                sendMessage(Message.createErrorMessage(Message.ErrorCode.SERVER_FULL,
+                        "방 생성 실패 (최대 " + maxRooms + "개)"));
             }
         }
 
@@ -889,9 +964,9 @@ public class BaseballServerGUI extends JFrame {
             currentRoom = room;
             room.addPlayer(this);
 
-            Message response = new Message(Message.MessageType.JOIN_ROOM_RESPONSE, "SERVER");
+            Message response = room.createRoomUpdateMessage("방 입장 성공");
+            response.setType(Message.MessageType.JOIN_ROOM_RESPONSE);
             response.setSuccess(true);
-            response.setRoomId(roomId);
             sendMessage(response);
         }
 
@@ -907,14 +982,14 @@ public class BaseballServerGUI extends JFrame {
 
         // 준비 처리
         private void handleReady(boolean ready) {
-            if (currentRoom != null && !userId.equals(currentRoom.roomMaster)) {
+            if (currentRoom != null && !currentRoom.isGameRunning) {
                 currentRoom.setReady(userId, ready);
             }
         }
 
         // 게임 시작 요청 처리
         private void handleStartGameRequest() {
-            if (currentRoom == null) {
+            if(currentRoom == null) {
                 return;
             }
 
@@ -925,34 +1000,26 @@ public class BaseballServerGUI extends JFrame {
 
             if (!currentRoom.canStartGame()) {
                 sendMessage(Message.createErrorMessage(Message.ErrorCode.NOT_ENOUGH_PLAYERS,
-                        "모든 플레이어가 준비되지 않았습니다."));
+                        "모든 플레이어가 준비되지 않았거나 인원(" + currentRoom.gameMode.getMaxPlayers() + "명)이 부족합니다.")); //
                 return;
             }
-
             currentRoom.startGame();
         }
 
         // 강제 퇴장 처리 (방장 권한)
         private void handleKickPlayer(Message msg) {
-            if (currentRoom == null) {
-                return;
-            }
-
-            // 방장만 가능
-            if (!userId.equals(currentRoom.roomMaster)) {
+            if (currentRoom == null || !userId.equals(currentRoom.roomMaster)) {
                 sendMessage(Message.createErrorMessage(Message.ErrorCode.NOT_ROOM_MASTER));
                 return;
             }
 
             String targetUserId = msg.getTargetUserId();
             if (targetUserId == null || targetUserId.equals(userId)) {
-                return; // 자기 자신은 강퇴 불가
+                return;
             }
 
-            // 대상 플레이어 찾기
             ClientHandler targetPlayer = null;
-            for (int i = 0; i < currentRoom.players.size(); i++) {
-                ClientHandler p = currentRoom.players.get(i);
+            for (ClientHandler p : currentRoom.players) {
                 if (p.userId.equals(targetUserId)) {
                     targetPlayer = p;
                     break;
@@ -977,13 +1044,16 @@ public class BaseballServerGUI extends JFrame {
         private void handleGuess(Message msg) {
             if (currentRoom != null && currentRoom.isGameRunning) {
                 currentRoom.handleGuess(this, msg.getGuess());
+            } else {
+                sendMessage(Message.createErrorMessage(Message.ErrorCode.UNKNOWN_ERROR,
+                        "현재 게임 중이 아니거나 방에 속해있지 않습니다."));
             }
         }
 
         // 방 채팅 처리
         private void handleRoomChat(Message msg) {
             if (currentRoom != null) {
-                Message chatMsg = new Message(Message.MessageType.CHAT_ROOM, userId, msg.getContent());
+                Message chatMsg = Message.createChatMessage(Message.MessageType.CHAT_ROOM, userId, msg.getContent(), null);
                 currentRoom.broadcastToRoom(chatMsg);
             }
         }
@@ -991,13 +1061,13 @@ public class BaseballServerGUI extends JFrame {
         // 팀 채팅 처리 (2v2 전용)
         private void handleTeamChat(Message msg) {
             if (currentRoom != null && currentRoom.gameMode == Message.GameMode.TWO_VS_TWO) {
-                int myTeam = currentRoom.playerTeams.get(userId);
-                Message chatMsg = new Message(Message.MessageType.CHAT_TEAM, userId, msg.getContent());
+                int myTeam = currentRoom.playerTeams.getOrDefault(userId, 0);
+                if(myTeam == 0) return;
 
-                // 같은 팀원에게만 전송
-                for (int i = 0; i < currentRoom.players.size(); i++) {
-                    ClientHandler p = currentRoom.players.get(i);
-                    if (currentRoom.playerTeams.get(p.userId) == myTeam) {
+                Message chatMsg = Message.createChatMessage(Message.MessageType.CHAT_TEAM, userId, msg.getContent(), null);
+
+                for (ClientHandler p : currentRoom.players) {
+                    if (currentRoom.playerTeams.getOrDefault(p.userId, 0) == myTeam) {
                         p.sendMessage(chatMsg);
                     }
                 }
@@ -1006,39 +1076,37 @@ public class BaseballServerGUI extends JFrame {
 
         // 전체 채팅 처리
         private void handleAllChat(Message msg) {
-            Message chatMsg = new Message(Message.MessageType.CHAT_ALL, userId, msg.getContent());
-            for (int i = 0; i < clients.size(); i++) {
-                clients.get(i).sendMessage(chatMsg);
+            Message chatMsg = Message.createChatMessage(Message.MessageType.CHAT_ALL, userId, msg.getContent(), null);
+            for (ClientHandler client : clients) {
+                client.sendMessage(chatMsg);
             }
         }
 
         // 귓속말 처리
         private void handleWhisper(Message msg) {
             String targetUserId = msg.getTargetUserId();
-            if (targetUserId == null || targetUserId.isEmpty()) {
+            if(targetUserId == null || targetUserId.isEmpty()) {
                 return;
             }
 
             // 대상 찾기
             ClientHandler targetClient = null;
-            for (int i = 0; i < clients.size(); i++) {
-                if (clients.get(i).userId != null && clients.get(i).userId.equals(targetUserId)) {
-                    targetClient = clients.get(i);
+            for (ClientHandler client : clients) {
+                if (client.userId != null && client.userId.equals(targetUserId)) {
+                    targetClient = client;
                     break;
                 }
             }
 
             if (targetClient != null) {
-                Message whisperMsg = new Message(Message.MessageType.CHAT_WHISPER, userId, msg.getContent());
-                whisperMsg.setTargetUserId(targetUserId);
+                Message whisperMsg = Message.createChatMessage(Message.MessageType.CHAT_WHISPER, userId, msg.getContent(), targetUserId);
                 targetClient.sendMessage(whisperMsg);
 
                 // 본인에게도 전송 (발신 확인)
                 sendMessage(whisperMsg);
             } else {
-                Message errorMsg = new Message(Message.MessageType.ERROR, "SERVER",
-                        "사용자 '" + targetUserId + "'를 찾을 수 없습니다.");
-                sendMessage(errorMsg);
+                sendMessage(Message.createErrorMessage(Message.ErrorCode.UNKNOWN_ERROR,
+                        "사용자 '" + targetUserId + "'를 찾을 수 없습니다."));
             }
         }
 
@@ -1050,29 +1118,26 @@ public class BaseballServerGUI extends JFrame {
             }
 
             try {
-                BufferedReader br = new BufferedReader(new FileReader(STATS_FILE));
+                BufferedReader br  = new BufferedReader(new FileReader(STATS_FILE));
+                br.readLine();
                 String line;
-                br.readLine(); // 헤더 스킵
 
-                while ((line = br.readLine()) != null) {
+                while((line = br.readLine()) != null) {
                     String[] parts = line.split(",");
-                    if (parts[0].equals(targetUserId)) {
+                    if (parts.length >= 5 && parts[0].trim().equals(targetUserId)) {
                         Message response = new Message(Message.MessageType.STATS_RESPONSE, "SERVER");
-
                         Hashtable<String, String> stats = new Hashtable<>();
-                        stats.put("userId", parts[0]);
-                        stats.put("wins", parts[1]);
-                        stats.put("losses", parts[2]);
-                        stats.put("draws", parts[3]);
-                        stats.put("winRate", parts[4]);
+                        stats.put("userId", parts[0].trim());
+                        stats.put("wins", parts[1].trim());
+                        stats.put("losses", parts[2].trim());
+                        stats.put("draws", parts[3].trim());
+                        stats.put("winRate", parts[4].trim());
 
                         response.setData(stats);
                         sendMessage(response);
-                        br.close();
                         return;
                     }
                 }
-                br.close();
 
                 // 전적이 없는 경우
                 Message response = new Message(Message.MessageType.STATS_RESPONSE, "SERVER");
@@ -1084,7 +1149,6 @@ public class BaseballServerGUI extends JFrame {
                 stats.put("winRate", "0.0");
                 response.setData(stats);
                 sendMessage(response);
-
             } catch (IOException e) {
                 printDisplay("전적 조회 오류: " + e.getMessage());
             }
@@ -1096,14 +1160,14 @@ public class BaseballServerGUI extends JFrame {
                 Vector<Hashtable<String, String>> historyList = new Vector<>();
                 BufferedReader br = new BufferedReader(new FileReader(HISTORY_FILE));
                 String line;
-                br.readLine(); // 헤더 스킵
+                br.readLine();
 
                 int count = 0;
-                int maxRecords = 20; // 최근 20개만
+                int maxRecords = 20; //최근 20개만
 
-                while ((line = br.readLine()) != null && count < maxRecords) {
+                while((line = br.readLine()) != null && count < maxRecords) {
                     String[] parts = line.split(",");
-                    if (parts.length >= 6) {
+                    if(parts.length >= 6) {
                         Hashtable<String, String> record = new Hashtable<>();
                         record.put("gameId", parts[0]);
                         record.put("timestamp", parts[1]);
@@ -1115,59 +1179,54 @@ public class BaseballServerGUI extends JFrame {
                         count++;
                     }
                 }
-                br.close();
 
                 Message response = new Message(Message.MessageType.GAME_HISTORY_RESPONSE, "SERVER");
                 response.setData(historyList);
                 sendMessage(response);
-
             } catch (IOException e) {
                 printDisplay("게임 기록 조회 오류: " + e.getMessage());
             }
         }
 
         // 메시지 전송
-        public void sendMessage(Message msg) {
+        private void sendMessage(Message msg) {
             try {
                 out.writeObject(msg);
                 out.flush();
             } catch (IOException e) {
-                printDisplay("메시지 전송 오류(" + userId + "): " + e.getMessage());
+                printDisplay("메시지 전송 오류 (" + userId + "): " + e.getMessage());
             }
         }
 
-        // 연결 종료
+        // 연결 종로
         public void close() {
             try {
-                // 게임 중이었다면 자동 패배 처리
+                // 게임 중도 접속 끊김 처리
                 if (currentRoom != null && currentRoom.isGameRunning) {
                     if (currentRoom.gameMode == Message.GameMode.ONE_VS_ONE) {
-                        // 1v1: 끊긴 플레이어 패배
-                        for (int i = 0; i < currentRoom.players.size(); i++) {
-                            ClientHandler p = currentRoom.players.get(i);
-                            if (!p.userId.equals(userId)) {
+                        // 1v1: 끊긴 플레이어 자동 패배
+                        for (ClientHandler p : currentRoom.players) {
+                            if(!p.userId.equals(userId)) {
                                 currentRoom.endGame(p.userId, false, 0);
                                 break;
                             }
                         }
                     } else {
-                        // 2v2: 끊긴 플레이어의 팀 패배
-                        int disconnectedTeam = currentRoom.playerTeams.get(userId);
-                        int winnerTeam = (disconnectedTeam == 1) ? 2 : 1;
-
-                        Message msg = new Message(Message.MessageType.END_GAME, "SERVER");
-                        msg.setWinnerTeam(winnerTeam);
-                        msg.setContent("상대 팀원이 접속 종료하여 Team " + winnerTeam + " 승리!");
-                        currentRoom.broadcastToRoom(msg);
+                        // 2v2: 끊긴 플레이어의 팀 자동 패배
+                        int disconnectedTeam = currentRoom.playerTeams.getOrDefault(userId, 0);
+                        if (disconnectedTeam != 0) {
+                            int winnerTeam = (disconnectedTeam == 1) ? 2 : 1;
+                            currentRoom.endGame(null, false, winnerTeam);
                     }
                 }
+                    }
 
                 if (currentRoom != null) {
                     currentRoom.removePlayer(this);
                     currentRoom = null;
                 }
 
-                if (userId != null) {
+                if(userId != null) {
                     clients.remove(this);
                     printDisplay(userId + " 연결 종료");
                 }
@@ -1181,9 +1240,10 @@ public class BaseballServerGUI extends JFrame {
         }
     }
 
-    // ==================== main 메서드 ====================
+    // --- main 메서드 ---
 
     public static void main(String[] args) {
         new BaseballServerGUI(54321);
     }
 }
+
