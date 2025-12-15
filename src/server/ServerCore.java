@@ -168,6 +168,15 @@ public class ServerCore {
         }
     }
 
+    // 특정 클라이언트 제외하고 전체 채팅 브로드캐스트
+    public void broadcastChatAllExcept(Message chatMsg, ClientHandler except) {
+        for (ClientHandler client : clientHandlers) {
+            if (client != except) {
+                client.sendMessage(chatMsg);
+            }
+        }
+    }
+
     // 게임 로직 메서드들
     public String generateAnswer(int digitCount) {
         Vector<Integer> numbers = new Vector<>();

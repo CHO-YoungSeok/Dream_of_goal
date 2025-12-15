@@ -393,7 +393,7 @@ public class ClientHandler implements Runnable {
         if (currentRoom != null) {
             Message chatMsg = Message.createChatMessage(
                     Message.MessageType.CHAT_ROOM, userId, msg.getContent(), null);
-            currentRoom.broadcastToRoom(chatMsg);
+            currentRoom.broadcastToRoomExcept(chatMsg, this);
         }
     }
 
@@ -407,7 +407,7 @@ public class ClientHandler implements Runnable {
                     Message.MessageType.CHAT_TEAM, userId, msg.getContent(), null);
 
             for (ClientHandler p : currentRoom.players) {
-                if (currentRoom.playerTeams.getOrDefault(p.userId, 0) == myTeam) {
+                if (currentRoom.playerTeams.getOrDefault(p.userId, 0) == myTeam && p != this) {
                     p.sendMessage(chatMsg);
                 }
             }
@@ -418,7 +418,7 @@ public class ClientHandler implements Runnable {
     private void handleAllChat(Message msg) {
         Message chatMsg = Message.createChatMessage(
                 Message.MessageType.CHAT_ALL, userId, msg.getContent(), null);
-        serverCore.broadcastChatAll(chatMsg);
+        serverCore.broadcastChatAllExcept(chatMsg, this);
     }
 
     // 귓속말
