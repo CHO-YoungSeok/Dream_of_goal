@@ -1,0 +1,377 @@
+package client.ui;
+
+import common.Message;
+import client.util.UIHelper;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.util.List;
+
+/**
+ * Lobby screen showing room list
+ */
+public class LobbyPanel extends JPanel {
+    private JTable roomListTable;
+    private DefaultTableModel roomListTableModel;
+    private JButton b_createRoom, b_joinRoom, b_refreshRoomList;
+    private LobbyListener listener;
+
+    public LobbyPanel(LobbyListener listener) {
+        this.listener = listener;
+        buildUI();
+    }
+
+    private void buildUI() {
+        setLayout(new BorderLayout());
+
+        // Top panel with title
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setOpaque(false);
+
+        JLabel titleLabel = new JLabel("Lobby", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        titleLabel.setForeground(Color.YELLOW);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        topPanel.add(titleLabel, BorderLayout.CENTER);
+
+        add(topPanel, BorderLayout.NORTH);
+
+        // Center panel with room list
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.setOpaque(false);
+        centerPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+
+        // Room list table
+        String[] columnNames = {"방 번호", "방 이름", "방장", "상태", "인원", "모드", "난이도"};
+        roomListTableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        roomListTable = new JTable(roomListTableModel);
+        roomListTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        roomListTable.getTableHeader().setReorderingAllowed(false);
+        roomListTable.setFont(new Font("Arial", Font.PLAIN, 14));
+        roomListTable.setRowHeight(25);
+
+        JScrollPane scrollPane = new JScrollPane(roomListTable);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        centerPanel.add(scrollPane, BorderLayout.CENTER);
+
+        add(centerPanel, BorderLayout.CENTER);
+
+        // Bottom panel with buttons
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        bottomPanel.setOpaque(false);
+
+        b_createRoom = new JButton("방 생성");
+        b_createRoom.setFont(new Font("Arial", Font.BOLD, 16));
+        b_createRoom.setPreferredSize(new Dimension(120, 40));
+        b_createRoom.addActionListener(e -> showCreateRoomDialog());
+
+        b_joinRoom = new JButton("방 입장");
+        b_joinRoom.setFont(new Font("Arial", Font.BOLD, 16));
+        b_joinRoom.setPreferredSize(new Dimension(120, 40));
+        b_joinRoom.addActionListener(e -> handleJoinRoom());
+
+        b_refreshRoomList = new JButton("새로고침");
+        b_refreshRoomList.setFont(new Font("Arial", Font.BOLD, 16));
+        b_refreshRoomList.setPreferredSize(new Dimension(120, 40));
+        b_refreshRoomList.addActionListener(e -> listener.onRefreshRequested());
+
+        bottomPanel.add(b_createRoom);
+        bottomPanel.add(b_joinRoom);
+        bottomPanel.add(b_refreshRoomList);
+
+        add(bottomPanel, BorderLayout.SOUTH);
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        ImageIcon background = new ImageIcon("src/image/intro.jpg");
+        Image img = background.getImage();
+        g.drawImage(img, 0, 0, getWidth(), getHeight(), this);
+    }
+
+    /**
+     * Update room list table with new data
+     * @param roomList List of room information messages
+     */
+    public void updateRoomList(List<Message> roomList) {
+        // Clear existing rows
+        roomListTableModel.setRowCount(0);
+
+        // Add new rows
+        for (Message roomInfo : roomList) {
+            Object[] row = new Object[7];
+            row[0] = roomInfo.getRoomId();
+            row[1] = roomInfo.getRoomName();
+            row[2] = roomInfo.getRoomMaster();
+            row[3] = roomInfo.getRoomStatus() == Message.RoomStatus.WAITING ? "대기 중" : "게임 중";
+            row[4] = roomInfo.getCurrentPlayers() + "/" + roomInfo.getMaxPlayers();
+            row[5] = roomInfo.getGameMode() != null ? roomInfo.getGameMode().getDisplayName() : "";
+            row[6] = roomInfo.getDifficulty() != null ? roomInfo.getDifficulty().getDisplayName() : "";
+            roomListTableModel.addRow(row);
+        }
+    }
+
+    private void handleJoinRoom() {
+        int selectedRow = roomListTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this,
+                "방을 선택해주세요",
+                "선택 필요",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int roomId = (Integer) roomListTableModel.getValueAt(selectedRow, 0);
+        String roomName = (String) roomListTableModel.getValueAt(selectedRow, 1);
+        String roomStatus = (String) roomListTableModel.getValueAt(selectedRow, 3);
+
+        if ("게임 중".equals(roomStatus)) {
+            JOptionPane.showMessageDialog(this,
+                "게임 진행 중인 방은 입장할 수 없습니다",
+                "입장 불가",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Check if room is private (has 🔒 in name)
+        String password = null;
+        if (roomName != null && roomName.contains("비공개")) {
+            password = UIHelper.showPasswordDialog(this, "비공개 방입니다. 비밀번호를 입력하세요:");
+            if (password == null) {
+                return; // User cancelled
+            }
+        }
+
+        listener.onJoinRoomRequested(roomId, password);
+    }
+
+    private void showCreateRoomDialog() {
+        showCreateRoomDialog(false, null);
+    }
+
+    /**
+     * Show create/edit room dialog
+     * @param isEditMode Whether this is edit mode (not create)
+     * @param currentSettings Current room settings (for edit mode)
+     */
+    public void showCreateRoomDialog(boolean isEditMode, Message currentSettings) {
+        // Create dialog
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        JDialog dialog = new JDialog(parentFrame, isEditMode ? "방 정보 변경" : "방 생성", true);
+        dialog.setLayout(new BorderLayout());
+
+        // Background panel
+        JPanel backgroundPanel = UIHelper.createBackgroundPanel("src/image/intro.jpg");
+        backgroundPanel.setLayout(new BoxLayout(backgroundPanel, BoxLayout.Y_AXIS));
+
+        // Title
+        JLabel titleLabel = new JLabel(isEditMode ? "방 정보 변경" : "방 생성");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        titleLabel.setForeground(Color.YELLOW);
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // Room name
+        JPanel roomNamePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        roomNamePanel.setOpaque(false);
+        JLabel l_roomName = new JLabel("방 이름:");
+        l_roomName.setFont(new Font("Arial", Font.BOLD, 16));
+        l_roomName.setForeground(Color.WHITE);
+        JTextField t_roomName = new JTextField(20);
+        t_roomName.setFont(new Font("Arial", Font.PLAIN, 14));
+        if (isEditMode && currentSettings != null) {
+            t_roomName.setText(currentSettings.getRoomName());
+        }
+        roomNamePanel.add(l_roomName);
+        roomNamePanel.add(t_roomName);
+
+        // Game mode
+        JPanel gameModePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        gameModePanel.setOpaque(false);
+        JLabel l_gameMode = new JLabel("게임 모드:");
+        l_gameMode.setFont(new Font("Arial", Font.BOLD, 16));
+        l_gameMode.setForeground(Color.WHITE);
+        JComboBox<String> cb_gameMode = new JComboBox<>(new String[]{"1v1", "2v2"});
+        cb_gameMode.setFont(new Font("Arial", Font.PLAIN, 14));
+        if (isEditMode && currentSettings != null && currentSettings.getGameMode() != null) {
+            cb_gameMode.setSelectedIndex(currentSettings.getGameMode() == Message.GameMode.ONE_VS_ONE ? 0 : 1);
+        }
+        gameModePanel.add(l_gameMode);
+        gameModePanel.add(cb_gameMode);
+
+        // Difficulty
+        JPanel difficultyPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        difficultyPanel.setOpaque(false);
+        JLabel l_difficulty = new JLabel("난이도:");
+        l_difficulty.setFont(new Font("Arial", Font.BOLD, 16));
+        l_difficulty.setForeground(Color.WHITE);
+        JComboBox<String> cb_difficulty = new JComboBox<>(new String[]{"하", "중", "상"});
+        cb_difficulty.setFont(new Font("Arial", Font.PLAIN, 14));
+        if (isEditMode && currentSettings != null && currentSettings.getDifficulty() != null) {
+            cb_difficulty.setSelectedIndex(currentSettings.getDifficulty().ordinal());
+        }
+        difficultyPanel.add(l_difficulty);
+        difficultyPanel.add(cb_difficulty);
+
+        // Turn time limit
+        JPanel turnTimeLimitPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        turnTimeLimitPanel.setOpaque(false);
+        JLabel l_turnTimeLimit = new JLabel("턴 제한 시간:");
+        l_turnTimeLimit.setFont(new Font("Arial", Font.BOLD, 16));
+        l_turnTimeLimit.setForeground(Color.WHITE);
+        JComboBox<String> cb_turnTimeLimit = new JComboBox<>(new String[]{"15초", "30초", "60초"});
+        cb_turnTimeLimit.setFont(new Font("Arial", Font.PLAIN, 14));
+        if (isEditMode && currentSettings != null && currentSettings.getTurnTimeLimit() != null) {
+            int index = currentSettings.getTurnTimeLimit() == Message.TurnTimeLimit.FIFTEEN ? 0 :
+                        currentSettings.getTurnTimeLimit() == Message.TurnTimeLimit.THIRTY ? 1 : 2;
+            cb_turnTimeLimit.setSelectedIndex(index);
+        }
+        turnTimeLimitPanel.add(l_turnTimeLimit);
+        turnTimeLimitPanel.add(cb_turnTimeLimit);
+
+        // Private room checkbox
+        JPanel privateRoomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        privateRoomPanel.setOpaque(false);
+        JCheckBox chk_isPrivate = new JCheckBox("비공개 방");
+        chk_isPrivate.setFont(new Font("Arial", Font.BOLD, 16));
+        chk_isPrivate.setForeground(Color.WHITE);
+        chk_isPrivate.setOpaque(false);
+        if (isEditMode && currentSettings != null) {
+            chk_isPrivate.setSelected(currentSettings.isPrivate());
+        }
+        privateRoomPanel.add(chk_isPrivate);
+
+        // Password
+        JPanel passwordPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        passwordPanel.setOpaque(false);
+        JLabel l_password = new JLabel("비밀번호:");
+        l_password.setFont(new Font("Arial", Font.BOLD, 16));
+        l_password.setForeground(Color.WHITE);
+        JPasswordField t_password = new JPasswordField(20);
+        t_password.setFont(new Font("Arial", Font.PLAIN, 14));
+        t_password.setEnabled(chk_isPrivate.isSelected());
+        if (isEditMode && currentSettings != null && currentSettings.getRoomPassword() != null) {
+            t_password.setText(currentSettings.getRoomPassword());
+        }
+        passwordPanel.add(l_password);
+        passwordPanel.add(t_password);
+
+        // Private checkbox listener
+        chk_isPrivate.addActionListener(e -> {
+            t_password.setEnabled(chk_isPrivate.isSelected());
+            if (!chk_isPrivate.isSelected()) {
+                t_password.setText("");
+            }
+        });
+
+        // Allow spectators
+        JPanel spectatorPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        spectatorPanel.setOpaque(false);
+        JCheckBox chk_allowSpectators = new JCheckBox("관전 허용");
+        chk_allowSpectators.setFont(new Font("Arial", Font.BOLD, 16));
+        chk_allowSpectators.setForeground(Color.WHITE);
+        chk_allowSpectators.setOpaque(false);
+        if (isEditMode && currentSettings != null) {
+            chk_allowSpectators.setSelected(currentSettings.isAllowSpectators());
+        }
+        spectatorPanel.add(chk_allowSpectators);
+
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        buttonPanel.setOpaque(false);
+
+        JButton b_confirm = new JButton(isEditMode ? "변경" : "생성");
+        b_confirm.setFont(new Font("Arial", Font.BOLD, 16));
+        b_confirm.setPreferredSize(new Dimension(100, 40));
+
+        JButton b_cancel = new JButton("취소");
+        b_cancel.setFont(new Font("Arial", Font.BOLD, 16));
+        b_cancel.setPreferredSize(new Dimension(100, 40));
+        b_cancel.addActionListener(e -> dialog.dispose());
+
+        // Confirm button action
+        b_confirm.addActionListener(e -> {
+            // Validate input
+            String roomName = t_roomName.getText().trim();
+            if (roomName.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog,
+                    "방 이름을 입력해주세요",
+                    "입력 필요",
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            boolean isPrivate = chk_isPrivate.isSelected();
+            String password = new String(t_password.getPassword()).trim();
+            if (isPrivate && password.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog,
+                    "비공개 방은 비밀번호를 입력해야 합니다",
+                    "입력 필요",
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Convert to enums
+            Message.GameMode gameMode = cb_gameMode.getSelectedIndex() == 0
+                ? Message.GameMode.ONE_VS_ONE
+                : Message.GameMode.TWO_VS_TWO;
+
+            Message.Difficulty difficulty = Message.Difficulty.values()[cb_difficulty.getSelectedIndex()];
+
+            Message.TurnTimeLimit turnTimeLimit =
+                cb_turnTimeLimit.getSelectedIndex() == 0 ? Message.TurnTimeLimit.FIFTEEN :
+                cb_turnTimeLimit.getSelectedIndex() == 1 ? Message.TurnTimeLimit.THIRTY :
+                Message.TurnTimeLimit.SIXTY;
+
+            boolean allowSpectators = chk_allowSpectators.isSelected();
+
+            // Notify listener
+            listener.onCreateRoomRequested(
+                roomName,
+                gameMode,
+                difficulty,
+                turnTimeLimit,
+                isPrivate,
+                isPrivate ? password : null,
+                allowSpectators
+            );
+
+            dialog.dispose();
+        });
+
+        buttonPanel.add(b_confirm);
+        buttonPanel.add(b_cancel);
+
+        // Add all components
+        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 30)));
+        backgroundPanel.add(titleLabel);
+        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        backgroundPanel.add(roomNamePanel);
+        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        backgroundPanel.add(gameModePanel);
+        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        backgroundPanel.add(difficultyPanel);
+        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        backgroundPanel.add(turnTimeLimitPanel);
+        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        backgroundPanel.add(privateRoomPanel);
+        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        backgroundPanel.add(passwordPanel);
+        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        backgroundPanel.add(spectatorPanel);
+        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        backgroundPanel.add(buttonPanel);
+        backgroundPanel.add(Box.createVerticalGlue());
+
+        dialog.add(backgroundPanel);
+        dialog.setSize(480, 700);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+}

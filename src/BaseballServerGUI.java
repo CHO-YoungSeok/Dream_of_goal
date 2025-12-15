@@ -1,3 +1,4 @@
+import common.Message;
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
@@ -5,7 +6,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Hashtable;
 import java.util.Vector;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 public class BaseballServerGUI extends JFrame {
