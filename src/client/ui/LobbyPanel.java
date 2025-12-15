@@ -8,13 +8,22 @@ import java.awt.*;
 import java.util.List;
 
 /**
- * Lobby screen showing room list
+ * Lobby screen showing room list, chat, and user list
  */
 public class LobbyPanel extends JPanel {
     private JTable roomListTable;
     private DefaultTableModel roomListTableModel;
     private JButton b_createRoom, b_joinRoom, b_refreshRoomList;
     private LobbyListener listener;
+
+    // 채팅 관련 컴포넌트
+    private JTextArea t_chatDisplay;
+    private JTextField t_chatInput;
+    private JButton b_sendChat;
+
+    // 접속자 목록 관련 컴포넌트
+    private JList<String> userList;
+    private DefaultListModel<String> userListModel;
 
     public LobbyPanel(LobbyListener listener) {
         this.listener = listener;
@@ -24,24 +33,30 @@ public class LobbyPanel extends JPanel {
     private void buildUI() {
         setLayout(new BorderLayout());
 
-        // Top panel with title
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.setOpaque(false);
+        // Main vertical container
+        JPanel mainContainer = new JPanel();
+        mainContainer.setLayout(new BoxLayout(mainContainer, BoxLayout.Y_AXIS));
+        mainContainer.setOpaque(false);
 
+        // ===========================================
+        // 1. Room List Section (60% of height)
+        // ===========================================
+        JPanel roomListSection = new JPanel(new BorderLayout());
+        roomListSection.setOpaque(false);
+        roomListSection.setPreferredSize(new Dimension(800, 360)); // 60% of assumed 600px height
+
+        // Title
         JLabel titleLabel = new JLabel("Lobby", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
         titleLabel.setForeground(Color.YELLOW);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
-        topPanel.add(titleLabel, BorderLayout.CENTER);
-
-        add(topPanel, BorderLayout.NORTH);
-
-        // Center panel with room list
-        JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setOpaque(false);
-        centerPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        roomListSection.add(titleLabel, BorderLayout.NORTH);
 
         // Room list table
+        JPanel roomListPanel = new JPanel(new BorderLayout());
+        roomListPanel.setOpaque(false);
+        roomListPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 10, 20));
+
         String[] columnNames = {"방 번호", "방 이름", "방장", "상태", "인원", "모드", "난이도"};
         roomListTableModel = new DefaultTableModel(columnNames, 0) {
             @Override
@@ -55,16 +70,16 @@ public class LobbyPanel extends JPanel {
         roomListTable.setFont(new Font("Arial", Font.PLAIN, 14));
         roomListTable.setRowHeight(25);
 
-        JScrollPane scrollPane = new JScrollPane(roomListTable);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        centerPanel.add(scrollPane, BorderLayout.CENTER);
+        JScrollPane roomScrollPane = new JScrollPane(roomListTable);
+        roomScrollPane.setOpaque(false);
+        roomScrollPane.getViewport().setOpaque(false);
+        roomListPanel.add(roomScrollPane, BorderLayout.CENTER);
 
-        add(centerPanel, BorderLayout.CENTER);
+        roomListSection.add(roomListPanel, BorderLayout.CENTER);
 
-        // Bottom panel with buttons
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
-        bottomPanel.setOpaque(false);
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        buttonPanel.setOpaque(false);
 
         b_createRoom = new JButton("방 생성");
         b_createRoom.setFont(new Font("Arial", Font.BOLD, 16));
@@ -81,11 +96,89 @@ public class LobbyPanel extends JPanel {
         b_refreshRoomList.setPreferredSize(new Dimension(120, 40));
         b_refreshRoomList.addActionListener(e -> listener.onRefreshRequested());
 
-        bottomPanel.add(b_createRoom);
-        bottomPanel.add(b_joinRoom);
-        bottomPanel.add(b_refreshRoomList);
+        buttonPanel.add(b_createRoom);
+        buttonPanel.add(b_joinRoom);
+        buttonPanel.add(b_refreshRoomList);
 
-        add(bottomPanel, BorderLayout.SOUTH);
+        roomListSection.add(buttonPanel, BorderLayout.SOUTH);
+
+        // ===========================================
+        // 2. Chat Section (30% of height)
+        // ===========================================
+        JPanel chatSection = new JPanel(new BorderLayout());
+        chatSection.setOpaque(false);
+        chatSection.setPreferredSize(new Dimension(800, 180)); // 30% of assumed 600px height
+        chatSection.setBorder(BorderFactory.createEmptyBorder(5, 20, 5, 20));
+
+        // Chat title
+        JLabel chatTitleLabel = new JLabel("로비 채팅", SwingConstants.LEFT);
+        chatTitleLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        chatTitleLabel.setForeground(Color.YELLOW);
+        chatTitleLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
+        chatSection.add(chatTitleLabel, BorderLayout.NORTH);
+
+        // Chat display area
+        t_chatDisplay = new JTextArea();
+        t_chatDisplay.setEditable(false);
+        t_chatDisplay.setFont(new Font("Arial", Font.PLAIN, 12));
+        t_chatDisplay.setLineWrap(true);
+        t_chatDisplay.setWrapStyleWord(true);
+        JScrollPane chatScrollPane = new JScrollPane(t_chatDisplay);
+        chatScrollPane.setPreferredSize(new Dimension(760, 120));
+        chatSection.add(chatScrollPane, BorderLayout.CENTER);
+
+        // Chat input panel
+        JPanel chatInputPanel = new JPanel(new BorderLayout(5, 0));
+        chatInputPanel.setOpaque(false);
+        chatInputPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+
+        t_chatInput = new JTextField();
+        t_chatInput.setFont(new Font("Arial", Font.PLAIN, 14));
+        t_chatInput.addActionListener(e -> sendChatMessage());
+
+        b_sendChat = new JButton("전송");
+        b_sendChat.setFont(new Font("Arial", Font.BOLD, 14));
+        b_sendChat.setPreferredSize(new Dimension(80, 30));
+        b_sendChat.addActionListener(e -> sendChatMessage());
+
+        chatInputPanel.add(t_chatInput, BorderLayout.CENTER);
+        chatInputPanel.add(b_sendChat, BorderLayout.EAST);
+
+        chatSection.add(chatInputPanel, BorderLayout.SOUTH);
+
+        // ===========================================
+        // 3. User List Section (10% of height)
+        // ===========================================
+        JPanel userListSection = new JPanel(new BorderLayout());
+        userListSection.setOpaque(false);
+        userListSection.setPreferredSize(new Dimension(800, 60)); // 10% of assumed 600px height
+        userListSection.setBorder(BorderFactory.createEmptyBorder(5, 20, 10, 20));
+
+        // User list title
+        JLabel userListTitleLabel = new JLabel("접속자", SwingConstants.LEFT);
+        userListTitleLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        userListTitleLabel.setForeground(Color.YELLOW);
+        userListSection.add(userListTitleLabel, BorderLayout.NORTH);
+
+        // User list
+        userListModel = new DefaultListModel<>();
+        userList = new JList<>(userListModel);
+        userList.setFont(new Font("Arial", Font.PLAIN, 12));
+        userList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        userList.setVisibleRowCount(1);
+
+        JScrollPane userScrollPane = new JScrollPane(userList);
+        userScrollPane.setPreferredSize(new Dimension(760, 40));
+        userScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        userScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+        userListSection.add(userScrollPane, BorderLayout.CENTER);
+
+        // Add all sections to main container
+        mainContainer.add(roomListSection);
+        mainContainer.add(chatSection);
+        mainContainer.add(userListSection);
+
+        add(mainContainer, BorderLayout.CENTER);
     }
 
     @Override
@@ -154,6 +247,39 @@ public class LobbyPanel extends JPanel {
 
     private void showCreateRoomDialog() {
         showCreateRoomDialog(false, null);
+    }
+
+    /**
+     * Send chat message to lobby
+     */
+    private void sendChatMessage() {
+        String message = t_chatInput.getText().trim();
+        if (!message.isEmpty()) {
+            listener.onLobbyChatSent(message);
+            t_chatInput.setText("");
+        }
+    }
+
+    /**
+     * Add a chat message to the display
+     * @param userName User who sent the message
+     * @param message Message content
+     */
+    public void addChatMessage(String userName, String message) {
+        String timestamp = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+        t_chatDisplay.append(String.format("[%s] %s: %s\n", timestamp, userName, message));
+        t_chatDisplay.setCaretPosition(t_chatDisplay.getDocument().getLength());
+    }
+
+    /**
+     * Update the user list
+     * @param users List of user names with their status
+     */
+    public void updateUserList(java.util.List<String> users) {
+        userListModel.clear();
+        for (String user : users) {
+            userListModel.addElement(user);
+        }
     }
 
     /**

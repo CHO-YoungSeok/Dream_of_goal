@@ -99,6 +99,9 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             case ROOM_LIST_RESPONSE:
                 handleRoomListResponse(msg);
                 break;
+            case USER_LIST_RESPONSE:
+                handleUserListResponse(msg);
+                break;
             case CREATE_ROOM_RESPONSE:
                 handleCreateRoomResponse(msg);
                 break;
@@ -131,7 +134,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
                 handleGameResult(msg);
                 break;
             case CHAT_ALL:
-                gamePanel.displayMessage(msg.toString(), Color.RED);
+                handleChatAll(msg);
                 break;
             case CHAT_TEAM:
                 gamePanel.displayMessage(msg.toString(), Color.BLUE);
@@ -182,6 +185,39 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             @SuppressWarnings("unchecked")
             java.util.List<Message> roomList = (java.util.List<Message>) msg.getData();
             lobbyPanel.updateRoomList(roomList);
+        }
+    }
+
+    private void handleUserListResponse(Message msg) {
+        if (msg.isSuccess()) {
+            java.util.List<String> connectedUsers = msg.getConnectedUsers();
+            java.util.Map<String, Message.UserStatus> statusMap = msg.getUserStatusMap();
+
+            if (connectedUsers != null && statusMap != null) {
+                // Format user list with status indicators
+                java.util.List<String> formattedUsers = new java.util.ArrayList<>();
+                for (String userId : connectedUsers) {
+                    Message.UserStatus status = statusMap.get(userId);
+                    String statusIndicator = "";
+
+                    if (status == Message.UserStatus.ONLINE) {
+                        statusIndicator = "\u2B24"; // Green dot (online in lobby)
+                    } else if (status == Message.UserStatus.IN_ROOM) {
+                        statusIndicator = "\u25FC"; // Yellow square (in room waiting)
+                    } else if (status == Message.UserStatus.IN_GAME) {
+                        statusIndicator = "\u25B2"; // Red triangle (in game)
+                    }
+
+                    formattedUsers.add(statusIndicator + " " + userId);
+                }
+
+                // Update lobby panel if in lobby state
+                if (currentState == UIState.LOBBY_SCREEN) {
+                    SwingUtilities.invokeLater(() -> {
+                        lobbyPanel.updateUserList(formattedUsers);
+                    });
+                }
+            }
         }
     }
 
@@ -396,6 +432,21 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         switchToResultScreen();
     }
 
+    private void handleChatAll(Message msg) {
+        String senderUserId = msg.getUserId();
+        String content = msg.getContent();
+
+        // Display in lobby panel if in lobby state
+        if (currentState == UIState.LOBBY_SCREEN) {
+            SwingUtilities.invokeLater(() -> {
+                lobbyPanel.addChatMessage(senderUserId, content);
+            });
+        } else {
+            // Display in game panel for other states
+            gamePanel.displayMessage(msg.toString(), Color.RED);
+        }
+    }
+
     private void handleError(Message msg) {
         Message.ErrorCode errorCode = msg.getErrorCode();
         String errorMessage = msg.getErrorMessage();
@@ -485,6 +536,13 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             isPrivate,
             password
         );
+        networkManager.sendMessage(msg);
+    }
+
+    @Override
+    public void onLobbyChatSent(String message) {
+        Message msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId());
+        msg.setContent(message);
         networkManager.sendMessage(msg);
     }
 
@@ -623,6 +681,10 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         SwingUtilities.invokeLater(() -> {
             cardLayout.show(mainPanel, LOBBY_PANEL);
             onRefreshRequested();
+
+            // Request user list
+            Message userListRequest = new Message(Message.MessageType.USER_LIST_REQUEST, stateManager.getCurrentUserId());
+            networkManager.sendMessage(userListRequest);
         });
     }
 
@@ -630,6 +692,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         currentState = UIState.ROOM_WAITING_SCREEN;
         SwingUtilities.invokeLater(() -> {
             roomWaitingPanel.updateRoomInfo();
+            roomWaitingPanel.updatePlayerList(); // 플레이어 목록 업데이트 추가
             cardLayout.show(mainPanel, ROOM_WAITING_PANEL);
         });
     }

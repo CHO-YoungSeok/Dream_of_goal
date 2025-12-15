@@ -17,7 +17,7 @@ public class BaseballServerGUI extends JFrame {
     private JButton b_start, b_stop;
 
     // 접속한 클라이언트 관리
-    private final Vector<ClientHandler> clients = new Vector<>();
+    private final Vector<ClientHandler> clientHandler = new Vector<>();
     private final int maxClients = 10; // 최대 동시 접속자 수
 
 // 방 관리
@@ -112,7 +112,7 @@ public class BaseballServerGUI extends JFrame {
                     Socket socket = serverSocket.accept();
 
                     // 최대 접속자 수 체크
-                    if(clients.size() >= maxClients) {
+                    if(clientHandler.size() >= maxClients) {
                         printDisplay("최대 접속자 수 초과. 연결 거부: " + socket.getInetAddress());
                         ObjectOutputStream tempOut = new ObjectOutputStream(socket.getOutputStream());
                         tempOut.writeObject(Message.createErrorMessage(Message.ErrorCode.SERVER_FULL));
@@ -137,10 +137,10 @@ public class BaseballServerGUI extends JFrame {
     private void stopServer() {
         try {
             // 모든 클라이언트 연결 종료
-            for (ClientHandler client : clients) {
+            for (ClientHandler client : clientHandler) {
                 client.close();
             }
-            clients.clear();
+            clientHandler.clear();
 
             // 서버 소켓 닫기
             if (serverSocket != null && !serverSocket.isClosed()) {
@@ -239,7 +239,7 @@ public class BaseballServerGUI extends JFrame {
 
     // 중복 로그인 체크
     private boolean isAlreadyLoggedIn(String userId) {
-        for(ClientHandler client : clients) {
+        for(ClientHandler client : clientHandler) {
             if(client.userId != null && client.userId.equals(userId)){
                 return true;
             }
@@ -388,6 +388,39 @@ public class BaseballServerGUI extends JFrame {
         }
 
         return newRoom;
+    }
+
+    /**
+     * Broadcast current user list to all connected clients
+     */
+    private synchronized void broadcastUserList() {
+        // Prepare user list and status map
+        java.util.List<String> userIds = new java.util.ArrayList<>();
+        java.util.Map<String, Message.UserStatus> statusMap = new java.util.HashMap<>();
+
+        synchronized (clientHandler) {
+            for (ClientHandler client : clientHandler) {
+                if (client.userId != null) {
+                    userIds.add(client.userId);
+                    statusMap.put(client.userId, client.userStatus);
+                }
+            }
+        }
+
+        // Create and send USER_LIST_RESPONSE message
+        Message msg = new Message(Message.MessageType.USER_LIST_RESPONSE);
+        msg.setConnectedUsers(userIds);
+        msg.setUserStatusMap(statusMap);
+        msg.setSuccess(true);
+
+        // Broadcast to all connected clients
+        synchronized (clientHandler) {
+            for (ClientHandler client : clientHandler) {
+                if (client.userId != null) {
+                    client.sendMessage(msg);
+                }
+            }
+        }
     }
 
     // --- 게임 로직 ---
@@ -608,6 +641,11 @@ public class BaseballServerGUI extends JFrame {
             isGameRunning = true;
             gameId = "G" + System.currentTimeMillis();
 
+            // 모든 플레이어 상태를 IN_GAME으로 변경
+            for (ClientHandler player : players) {
+                player.userStatus = Message.UserStatus.IN_GAME;
+            }
+
             if (gameMode == Message.GameMode.ONE_VS_ONE){
                 // 1v1: 각 플레이어에게 정답 생성
                 for (ClientHandler player : players) {
@@ -638,6 +676,9 @@ public class BaseballServerGUI extends JFrame {
             startMsg.setTurnTimeLimit(turnTimeLimit);
             startMsg.setContent("게임이 시작되었습니다!");
             broadcastToRoom(startMsg);
+
+            // 접속자 목록 갱신 (게임 시작 상태 반영)
+            BaseballServerGUI.this.broadcastUserList();
 
             // 턴 정보 정송
             sendTurnInfo();
@@ -793,6 +834,14 @@ public class BaseballServerGUI extends JFrame {
             }
             broadcastToRoom(endMsg);
 
+            // 모든 플레이어 상태를 IN_ROOM으로 변경
+            for (ClientHandler player : players) {
+                player.userStatus = Message.UserStatus.IN_ROOM;
+            }
+
+            // 접속자 목록 갱신 (게임 종료 상태 반영)
+            BaseballServerGUI.this.broadcastUserList();
+
             // 전적 및 게임 기록 저장
             saveGameHistory(winnerId, isDraw, winnerTeam);
 
@@ -883,6 +932,7 @@ public class BaseballServerGUI extends JFrame {
         private ObjectOutputStream out;
         private String userId;
         private GameRoom currentRoom;
+        private Message.UserStatus userStatus = Message.UserStatus.ONLINE; // 사용자 상태
 
         public ClientHandler(Socket socket) {
             this.socket = socket;
@@ -934,6 +984,9 @@ public class BaseballServerGUI extends JFrame {
                     break;
                 case ROOM_LIST_REQUEST:
                     handleRoomListRequest();
+                    break;
+                case USER_LIST_REQUEST:
+                    handleUserListRequest();
                     break;
                 case CREATE_ROOM_REQUEST:
                     handleCreateRoom(msg);
@@ -1002,13 +1055,16 @@ public class BaseballServerGUI extends JFrame {
             // 인증
             if (authenticateUser(userId, password)) {
                 this.userId = userId;
-                clients.add(this);
+                clientHandler.add(this);
 
                 Message response = new Message(Message.MessageType.LOGIN_RESPONSE, userId);
                 response.setSuccess(true);
                 response.setContent("로그인 성공");
                 sendMessage(response);
                 printDisplay(userId + " 로그인 성공");
+
+                // 접속자 목록 갱신
+                broadcastUserList();
             } else {
                 sendMessage(Message.createErrorMessage(Message.ErrorCode.LOGIN_FAILED));
             }
@@ -1055,6 +1111,11 @@ public class BaseballServerGUI extends JFrame {
             sendMessage(response);
         }
 
+        // 접속자 목록 요청 처리
+        private void handleUserListRequest() {
+            broadcastUserList();
+        }
+
         // 방 생성 처리
         private void handleCreateRoom(Message msg) {
             // 이미 방에 있으면 생성 불가
@@ -1073,12 +1134,16 @@ public class BaseballServerGUI extends JFrame {
             if (room != null) {
                 currentRoom = room;
                 room.addPlayer(this);
+                userStatus = Message.UserStatus.IN_ROOM; // 상태 변경
 
                 // 플레이어 리스트가 포함된 응답 메시지 생성
                 Message response = room.createRoomUpdateMessage("방 생성 성공");
                 response.setType(Message.MessageType.CREATE_ROOM_RESPONSE);
                 response.setSuccess(true);
                 sendMessage(response);
+
+                // 접속자 목록 갱신
+                broadcastUserList();
             } else {
                 sendMessage(Message.createErrorMessage(Message.ErrorCode.SERVER_FULL,
                         "방 생성 실패 (최대 " + maxRooms + "개)"));
@@ -1116,12 +1181,16 @@ public class BaseballServerGUI extends JFrame {
 
             currentRoom = room;
             room.addPlayer(this);
+            userStatus = Message.UserStatus.IN_ROOM; // 상태 변경
 
             // 플레이어 리스트가 포함된 응답 메시지 생성
             Message response = room.createRoomUpdateMessage("방 입장 성공");
             response.setType(Message.MessageType.JOIN_ROOM_RESPONSE);
             response.setSuccess(true);
             sendMessage(response);
+
+            // 접속자 목록 갱신
+            broadcastUserList();
         }
 
         // 방 정보 변경 처리
@@ -1175,8 +1244,12 @@ public class BaseballServerGUI extends JFrame {
             if (currentRoom != null) {
                 currentRoom.removePlayer(this);
                 currentRoom = null;
+                userStatus = Message.UserStatus.ONLINE; // 상태 변경
                 sendMessage(new Message(Message.MessageType.LEAVE_ROOM, "SERVER",
                         "방에서 나갔습니다."));
+
+                // 접속자 목록 갱신
+                broadcastUserList();
             }
         }
 
@@ -1277,7 +1350,7 @@ public class BaseballServerGUI extends JFrame {
         // 전체 채팅 처리
         private void handleAllChat(Message msg) {
             Message chatMsg = Message.createChatMessage(Message.MessageType.CHAT_ALL, userId, msg.getContent(), null);
-            for (ClientHandler client : clients) {
+            for (ClientHandler client : clientHandler) {
                 client.sendMessage(chatMsg);
             }
         }
@@ -1291,7 +1364,7 @@ public class BaseballServerGUI extends JFrame {
 
             // 대상 찾기
             ClientHandler targetClient = null;
-            for (ClientHandler client : clients) {
+            for (ClientHandler client : clientHandler) {
                 if (client.userId != null && client.userId.equals(targetUserId)) {
                     targetClient = client;
                     break;
@@ -1427,8 +1500,11 @@ public class BaseballServerGUI extends JFrame {
                 }
 
                 if(userId != null) {
-                    clients.remove(this);
+                    clientHandler.remove(this);
                     printDisplay(userId + " 연결 종료");
+
+                    // 접속자 목록 갱신
+                    broadcastUserList();
                 }
 
                 if (socket != null && !socket.isClosed()) {

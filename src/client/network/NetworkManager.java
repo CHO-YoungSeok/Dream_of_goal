@@ -16,7 +16,7 @@ public class NetworkManager {
     private Thread receiveThread;
     private MessageHandler messageHandler;
 
-    // Connection info loaded from CONN_INFO.txt
+    // Connection info loaded from server.txt
     private String serverAddress;
     private int serverPort;
 
@@ -30,10 +30,10 @@ public class NetworkManager {
     }
 
     /**
-     * Load connection info from CONN_INFO.txt
+     * Load connection info from server.txt
      */
     private void loadConnectionInfo() {
-        try (FileInputStream fis = new FileInputStream("CONN_INFO.txt");
+        try (FileInputStream fis = new FileInputStream("server.txt");
              BufferedReader reader = new BufferedReader(new InputStreamReader(fis))) {
             serverAddress = reader.readLine().trim();
             serverPort = Integer.parseInt(reader.readLine().trim());
@@ -43,7 +43,7 @@ public class NetworkManager {
             serverAddress = "localhost";
             serverPort = 54321;
         } catch (NumberFormatException e) {
-            System.err.println("Invalid port number in CONN_INFO.txt");
+            System.err.println("Invalid port number in server.txt");
             System.err.println("Using defaults: localhost:54321");
             serverAddress = "localhost";
             serverPort = 54321;

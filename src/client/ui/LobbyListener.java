@@ -43,4 +43,10 @@ public interface LobbyListener {
     void onEditRoomConfirmed(String roomName, Message.Difficulty difficulty,
                             Message.TurnTimeLimit turnTimeLimit,
                             boolean isPrivate, String password);
+
+    /**
+     * Called when user sends a lobby chat message
+     * @param message Chat message content
+     */
+    void onLobbyChatSent(String message);
 }

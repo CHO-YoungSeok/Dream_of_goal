@@ -250,6 +250,8 @@ public class Message implements Serializable {
 
     // 유저 상태
     private UserStatus userStatus;      // 유저 상태
+    private java.util.List<String> connectedUsers;  // 접속자 목록 (userId 리스트)
+    private java.util.Map<String, UserStatus> userStatusMap; // 유저별 상태 맵
 
     // 준비 상태
     private boolean isReady;            // 준비 완료 여부
@@ -536,6 +538,12 @@ public class Message implements Serializable {
 
     public UserStatus getUserStatus() { return userStatus; }
     public void setUserStatus(UserStatus userStatus) { this.userStatus = userStatus; }
+
+    public java.util.List<String> getConnectedUsers() { return connectedUsers; }
+    public void setConnectedUsers(java.util.List<String> connectedUsers) { this.connectedUsers = connectedUsers; }
+
+    public java.util.Map<String, UserStatus> getUserStatusMap() { return userStatusMap; }
+    public void setUserStatusMap(java.util.Map<String, UserStatus> userStatusMap) { this.userStatusMap = userStatusMap; }
 
     public boolean isReady() { return isReady; }
     public void setReady(boolean isReady) { this.isReady = isReady; }
