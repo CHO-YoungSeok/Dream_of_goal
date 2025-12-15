@@ -1375,8 +1375,6 @@ public class BaseballServerGUI extends JFrame {
                 Message whisperMsg = Message.createChatMessage(Message.MessageType.CHAT_WHISPER, userId, msg.getContent(), targetUserId);
                 targetClient.sendMessage(whisperMsg);
 
-                // 본인에게도 전송 (발신 확인)
-                sendMessage(whisperMsg);
             } else {
                 sendMessage(Message.createErrorMessage(Message.ErrorCode.UNKNOWN_ERROR,
                         "사용자 '" + targetUserId + "'를 찾을 수 없습니다."));
