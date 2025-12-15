@@ -30,6 +30,8 @@ public class Message implements Serializable {
         CREATE_ROOM_RESPONSE,   // 방 생성 응답 (S → C)
         JOIN_ROOM_REQUEST,      // 방 입장 요청 (C → S)
         JOIN_ROOM_RESPONSE,     // 방 입장 응답 (S → C)
+        EDIT_ROOM_REQUEST,      // 방 정보 변경 요청 (C → S)
+        EDIT_ROOM_RESPONSE,     // 방 정보 변경 응답 (S → C)
         JOIN_AS_SPECTATOR,      // 관전자로 입장 (C → S) - Phase 2
         SPECTATOR_LIST_UPDATE,  // 관전자 목록 업데이트 (S → C) - Phase 2
         LEAVE_ROOM,             // 방 나가기 (C → S)
@@ -350,6 +352,22 @@ public class Message implements Serializable {
     public static Message createJoinRoomRequest(String userId, int roomId, String roomPassword) {
         Message msg = new Message(MessageType.JOIN_ROOM_REQUEST, userId);
         msg.roomId = roomId;
+        msg.roomPassword = roomPassword;
+        return msg;
+    }
+
+    /**
+     * 방 정보 변경 요청 메시지 생성
+     */
+    public static Message createEditRoomRequest(String userId, int roomId, String roomName,
+            Difficulty difficulty, TurnTimeLimit turnTimeLimit,
+            boolean isPrivate, String roomPassword) {
+        Message msg = new Message(MessageType.EDIT_ROOM_REQUEST, userId);
+        msg.roomId = roomId;
+        msg.roomName = roomName;
+        msg.difficulty = difficulty;
+        msg.turnTimeLimit = turnTimeLimit;
+        msg.isPrivate = isPrivate;
         msg.roomPassword = roomPassword;
         return msg;
     }

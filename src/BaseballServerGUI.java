@@ -18,12 +18,12 @@ public class BaseballServerGUI extends JFrame {
 
     // 접속한 클라이언트 관리
     private final Vector<ClientHandler> clients = new Vector<>();
-    private final int maxClients = 100; // 최대 동시 접속자 수
+    private final int maxClients = 10; // 최대 동시 접속자 수
 
-    // 방 관리
+// 방 관리
     private final Vector<GameRoom> rooms = new Vector<>();
     private int nextRoomId = 1;
-    private final int maxRooms = 20;
+    private final int maxRooms = 5; // 최대 방 개수 
 
     // CSV 파싱을 위한 정규 표현식
     private static final String CSV_SPLIT_REGEX = ",(?=([^\"]*\"[^\"]*\")*[^\"]*$)";
@@ -247,6 +247,69 @@ public class BaseballServerGUI extends JFrame {
         return false;
     }
 
+    // 전적 업데이트
+    private synchronized void updateUserStats(String userId, boolean isWin, boolean isDraw) {
+        try {
+            // 전체 파일 읽기
+            Vector<String> lines = new Vector<>();
+            BufferedReader br = new BufferedReader(new FileReader(STATS_FILE));
+            String header = br.readLine(); // 헤더 저장
+            lines.add(header);
+
+            String line;
+            boolean userFound = false;
+
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 5 && parts[0].trim().equals(userId)) {
+                    // 해당 유저의 전적 업데이트
+                    int wins = Integer.parseInt(parts[1].trim());
+                    int losses = Integer.parseInt(parts[2].trim());
+                    int draws = Integer.parseInt(parts[3].trim());
+
+                    if (isWin) {
+                        wins++;
+                    } else if (isDraw) {
+                        draws++;
+                    } else {
+                        losses++;
+                    }
+
+                    // 승률 계산
+                    int totalGames = wins + losses + draws;
+                    double winRate = totalGames > 0 ? (wins * 100.0 / totalGames) : 0.0;
+
+                    // 업데이트된 라인 추가
+                    lines.add(userId + "," + wins + "," + losses + "," + draws + "," + String.format("%.1f", winRate));
+                    userFound = true;
+                } else {
+                    // 다른 유저는 그대로 유지
+                    lines.add(line);
+                }
+            }
+            br.close();
+
+            // 유저가 없었으면 새로 추가 (정상적인 경우는 회원가입 시 생성되므로 발생하지 않아야 함)
+            if (!userFound) {
+                int wins = isWin ? 1 : 0;
+                int losses = (!isWin && !isDraw) ? 1 : 0;
+                int draws = isDraw ? 1 : 0;
+                double winRate = wins * 100.0;
+                lines.add(userId + "," + wins + "," + losses + "," + draws + "," + String.format("%.1f", winRate));
+            }
+
+            // 파일에 다시 쓰기
+            FileWriter fw = new FileWriter(STATS_FILE);
+            for (String l : lines) {
+                fw.write(l + "\n");
+            }
+            fw.close();
+
+        } catch (IOException e) {
+            printDisplay("전적 업데이트 실패 (" + userId + "): " + e.getMessage());
+        }
+    }
+
     // --- 방 관련 메서드 ---
 
     // 방 생성
@@ -279,6 +342,52 @@ public class BaseballServerGUI extends JFrame {
     private void removeRoom(GameRoom room) {
         rooms.remove(room);
         printDisplay("방 삭제: [" + room.roomId + "]");
+    }
+
+    // 방 정보 변경 (현재 방 삭제 후 새 방 생성하여 플레이어 이동)
+    private GameRoom editRoom(GameRoom oldRoom, String roomName,
+                              Message.Difficulty difficulty, Message.TurnTimeLimit turnTimeLimit,
+                              boolean isPrivate, String roomPassword) {
+
+        // 게임 중이면 변경 불가
+        if (oldRoom.isGameRunning) {
+            return null;
+        }
+
+        // 기존 플레이어 목록 저장
+        Vector<ClientHandler> oldPlayers = new Vector<>(oldRoom.players);
+        String roomMaster = oldRoom.roomMaster;
+        Message.GameMode gameMode = oldRoom.gameMode; // 게임 모드는 변경 불가
+
+        // 기존 방 삭제
+        removeRoom(oldRoom);
+
+        // 새 방 생성
+        GameRoom newRoom = new GameRoom(nextRoomId++, roomName, roomMaster,
+                gameMode, difficulty, turnTimeLimit, isPrivate, roomPassword);
+        rooms.add(newRoom);
+        printDisplay("방 정보 변경: [" + newRoom.roomId + "] " + roomName);
+
+        // 모든 플레이어를 새 방으로 이동
+        for (ClientHandler player : oldPlayers) {
+            player.currentRoom = newRoom;
+            newRoom.players.add(player);
+
+            // 방장은 자동 준비, 나머지는 준비 초기화
+            if (player.userId.equals(roomMaster)) {
+                newRoom.readyStatus.put(player.userId, true);
+            } else {
+                newRoom.readyStatus.put(player.userId, false);
+            }
+
+            // 2v2 모드면 팀 재배정
+            if (gameMode == Message.GameMode.TWO_VS_TWO) {
+                int teamNum = (newRoom.players.size() <= 2) ? 1 : 2;
+                newRoom.playerTeams.put(player.userId, teamNum);
+            }
+        }
+
+        return newRoom;
     }
 
     // --- 게임 로직 ---
@@ -412,7 +521,13 @@ public class BaseballServerGUI extends JFrame {
             }
 
             players.add(player);
-            readyStatus.put(player.userId, false);
+
+            // 방장은 자동으로 준비 상태를 true로 설정
+            if (player.userId.equals(roomMaster)) {
+                readyStatus.put(player.userId, true);
+            } else {
+                readyStatus.put(player.userId, false);
+            }
 
             // 2v2 모드면 팀 배정
             if (gameMode == Message.GameMode.TWO_VS_TWO) {
@@ -441,6 +556,8 @@ public class BaseballServerGUI extends JFrame {
             // 방장이 나가면 위임
             if (player.userId.equals(roomMaster)) {
                 roomMaster = players.get(0).userId;
+                // 새로운 방장은 자동으로 준비 상태를 true로 설정
+                readyStatus.put(roomMaster, true);
                 Message msg = createRoomUpdateMessage(roomMaster + "님이 새로운 방장이 되었습니다.");
                 broadcastToRoom(msg);
             } else {
@@ -451,6 +568,11 @@ public class BaseballServerGUI extends JFrame {
 
         // 준비 상태 변경
         public void setReady(String userId, boolean ready) {
+            // 방장은 준비 상태를 변경할 수 없음 (항상 준비 상태)
+            if (userId.equals(roomMaster)) {
+                return;
+            }
+
             readyStatus.put(userId, ready);
             String msg = userId + "님이 " + (ready ? "준비완료" : "준비취소") + " 했습니다.";
 
@@ -468,6 +590,11 @@ public class BaseballServerGUI extends JFrame {
 
             // 방장 제외 모두 준비 완료인지 체크
             for(ClientHandler player : players) {
+                // 방장은 준비 체크 제외
+                if (player.userId.equals(roomMaster)) {
+                    continue;
+                }
+
                 Boolean ready = readyStatus.get(player.userId);
                 if(ready == null || !ready) {
                     return false;
@@ -702,6 +829,28 @@ public class BaseballServerGUI extends JFrame {
                 fw.close();
 
                 BaseballServerGUI.this.printDisplay("게임 기록 저장: " + gameId);
+
+                // 전적 업데이트
+                for (ClientHandler player : players) {
+                    boolean isWin = false;
+                    boolean isDrawResult = isDraw;
+
+                    if (!isDraw) {
+                        if (gameMode == Message.GameMode.TWO_VS_TWO) {
+                            // 2v2: 플레이어의 팀이 승리 팀인지 확인
+                            int playerTeam = playerTeams.get(player.userId);
+                            isWin = (playerTeam == winnerTeam);
+                        } else {
+                            // 1v1: 플레이어가 승자인지 확인
+                            isWin = player.userId.equals(winnerId);
+                        }
+                    }
+
+                    BaseballServerGUI.this.updateUserStats(player.userId, isWin, isDrawResult);
+                }
+
+                BaseballServerGUI.this.printDisplay("전적 업데이트 완료");
+
             } catch (IOException e) {
                 BaseballServerGUI.this.printDisplay("게임 기록 저장 실패: " + e.getMessage());
             }
@@ -791,6 +940,9 @@ public class BaseballServerGUI extends JFrame {
                     break;
                 case JOIN_ROOM_REQUEST:
                     handleJoinRoom(msg);
+                    break;
+                case EDIT_ROOM_REQUEST:
+                    handleEditRoom(msg);
                     break;
                 case LEAVE_ROOM:
                     handleLeaveRoom();
@@ -922,6 +1074,7 @@ public class BaseballServerGUI extends JFrame {
                 currentRoom = room;
                 room.addPlayer(this);
 
+                // 플레이어 리스트가 포함된 응답 메시지 생성
                 Message response = room.createRoomUpdateMessage("방 생성 성공");
                 response.setType(Message.MessageType.CREATE_ROOM_RESPONSE);
                 response.setSuccess(true);
@@ -964,10 +1117,57 @@ public class BaseballServerGUI extends JFrame {
             currentRoom = room;
             room.addPlayer(this);
 
+            // 플레이어 리스트가 포함된 응답 메시지 생성
             Message response = room.createRoomUpdateMessage("방 입장 성공");
             response.setType(Message.MessageType.JOIN_ROOM_RESPONSE);
             response.setSuccess(true);
             sendMessage(response);
+        }
+
+        // 방 정보 변경 처리
+        private void handleEditRoom(Message msg) {
+            if (currentRoom == null) {
+                sendMessage(Message.createErrorMessage(Message.ErrorCode.ROOM_NOT_FOUND,
+                        "방에 속해있지 않습니다."));
+                return;
+            }
+
+            // 방장만 변경 가능
+            if (!userId.equals(currentRoom.roomMaster)) {
+                sendMessage(Message.createErrorMessage(Message.ErrorCode.NOT_ROOM_MASTER,
+                        "방장만 방 정보를 변경할 수 있습니다."));
+                return;
+            }
+
+            // 게임 중에는 변경 불가
+            if (currentRoom.isGameRunning) {
+                sendMessage(Message.createErrorMessage(Message.ErrorCode.ROOM_IN_GAME,
+                        "게임 중에는 방 정보를 변경할 수 없습니다."));
+                return;
+            }
+
+            GameRoom oldRoom = currentRoom;
+            GameRoom newRoom = BaseballServerGUI.this.editRoom(
+                    oldRoom,
+                    msg.getRoomName(),
+                    msg.getDifficulty(),
+                    msg.getTurnTimeLimit(),
+                    msg.isPrivate(),
+                    msg.getRoomPassword()
+            );
+
+            if (newRoom != null) {
+                // 모든 플레이어에게 변경된 방 정보 전송
+                Message updateMsg = newRoom.createRoomUpdateMessage("방 정보가 변경되었습니다.");
+                updateMsg.setType(Message.MessageType.EDIT_ROOM_RESPONSE);
+                updateMsg.setSuccess(true);
+                newRoom.broadcastToRoom(updateMsg);
+
+                printDisplay("방 정보 변경 완료: [" + newRoom.roomId + "]");
+            } else {
+                sendMessage(Message.createErrorMessage(Message.ErrorCode.UNKNOWN_ERROR,
+                        "방 정보 변경 실패"));
+            }
         }
 
         // 방 나가기 처리

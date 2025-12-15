@@ -332,15 +332,27 @@ public class LobbyPanel extends JPanel {
             boolean allowSpectators = chk_allowSpectators.isSelected();
 
             // Notify listener
-            listener.onCreateRoomRequested(
-                roomName,
-                gameMode,
-                difficulty,
-                turnTimeLimit,
-                isPrivate,
-                isPrivate ? password : null,
-                allowSpectators
-            );
+            if (isEditMode) {
+                // 방 정보 변경 (게임 모드와 관전 허용은 변경 불가)
+                listener.onEditRoomConfirmed(
+                    roomName,
+                    difficulty,
+                    turnTimeLimit,
+                    isPrivate,
+                    isPrivate ? password : null
+                );
+            } else {
+                // 방 생성
+                listener.onCreateRoomRequested(
+                    roomName,
+                    gameMode,
+                    difficulty,
+                    turnTimeLimit,
+                    isPrivate,
+                    isPrivate ? password : null,
+                    allowSpectators
+                );
+            }
 
             dialog.dispose();
         });

@@ -1,7 +1,4 @@
 # Plan
-
-[제안서](https://www.notion.so/2a29233a3fe980eeb9fce382b2b60f54?pvs=21)
-
 ### 클라이언트
 
 ---

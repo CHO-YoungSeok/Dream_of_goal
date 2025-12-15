@@ -105,6 +105,9 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             case JOIN_ROOM_RESPONSE:
                 handleJoinRoomResponse(msg);
                 break;
+            case EDIT_ROOM_RESPONSE:
+                handleEditRoomResponse(msg);
+                break;
             case ROOM_INFO_UPDATE:
                 handleRoomInfoUpdate(msg);
                 break;
@@ -193,6 +196,20 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentRoomIsPrivate(msg.isPrivate());
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
             stateManager.setCurrentRoomAllowSpectators(msg.isAllowSpectators());
+
+            // 플레이어 리스트 처리
+            if (msg.getData() instanceof java.util.HashMap) {
+                @SuppressWarnings("unchecked")
+                java.util.HashMap<String, Object> roomData = (java.util.HashMap<String, Object>) msg.getData();
+                @SuppressWarnings("unchecked")
+                java.util.List<String> players = (java.util.List<String>) roomData.get("players");
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Boolean> readyStatus = (java.util.Map<String, Boolean>) roomData.get("readyStatus");
+
+                stateManager.setRoomPlayersList(players);
+                stateManager.setPlayerReadyStatus(readyStatus);
+            }
+
             switchToRoomWaitingScreen();
         } else {
             JOptionPane.showMessageDialog(this,
@@ -213,10 +230,59 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentRoomIsPrivate(msg.isPrivate());
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
             stateManager.setCurrentRoomAllowSpectators(msg.isAllowSpectators());
+
+            // 플레이어 리스트 처리
+            if (msg.getData() instanceof java.util.HashMap) {
+                @SuppressWarnings("unchecked")
+                java.util.HashMap<String, Object> roomData = (java.util.HashMap<String, Object>) msg.getData();
+                @SuppressWarnings("unchecked")
+                java.util.List<String> players = (java.util.List<String>) roomData.get("players");
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Boolean> readyStatus = (java.util.Map<String, Boolean>) roomData.get("readyStatus");
+
+                stateManager.setRoomPlayersList(players);
+                stateManager.setPlayerReadyStatus(readyStatus);
+            }
+
             switchToRoomWaitingScreen();
         } else {
             JOptionPane.showMessageDialog(this,
                 "Failed to join room: " + msg.getErrorMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void handleEditRoomResponse(Message msg) {
+        if (msg.isSuccess()) {
+            // 방 정보 업데이트
+            stateManager.setCurrentRoomId(msg.getRoomId());
+            stateManager.setCurrentRoomName(msg.getRoomName());
+            stateManager.setRoomMasterUserId(msg.getRoomMaster());
+            stateManager.setCurrentDifficulty(msg.getDifficulty());
+            stateManager.setCurrentTurnTimeLimit(msg.getTurnTimeLimit());
+            stateManager.setCurrentRoomIsPrivate(msg.isPrivate());
+            stateManager.setCurrentRoomPassword(msg.getRoomPassword());
+
+            // 플레이어 리스트 처리
+            if (msg.getData() instanceof java.util.HashMap) {
+                @SuppressWarnings("unchecked")
+                java.util.HashMap<String, Object> roomData = (java.util.HashMap<String, Object>) msg.getData();
+                @SuppressWarnings("unchecked")
+                java.util.List<String> players = (java.util.List<String>) roomData.get("players");
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Boolean> readyStatus = (java.util.Map<String, Boolean>) roomData.get("readyStatus");
+
+                stateManager.setRoomPlayersList(players);
+                stateManager.setPlayerReadyStatus(readyStatus);
+            }
+
+            roomWaitingPanel.updateRoomInfo();
+            roomWaitingPanel.updatePlayerList();
+            UIHelper.showToast(this, "방 정보가 변경되었습니다.");
+        } else {
+            JOptionPane.showMessageDialog(this,
+                "Failed to edit room: " + msg.getErrorMessage(),
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
         }
@@ -403,6 +469,22 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     @Override
     public void onRefreshRequested() {
         Message msg = new Message(Message.MessageType.ROOM_LIST_REQUEST, stateManager.getCurrentUserId());
+        networkManager.sendMessage(msg);
+    }
+
+    @Override
+    public void onEditRoomConfirmed(String roomName, Message.Difficulty difficulty,
+                                    Message.TurnTimeLimit turnTimeLimit,
+                                    boolean isPrivate, String password) {
+        Message msg = Message.createEditRoomRequest(
+            stateManager.getCurrentUserId(),
+            stateManager.getCurrentRoomId(),
+            roomName,
+            difficulty,
+            turnTimeLimit,
+            isPrivate,
+            password
+        );
         networkManager.sendMessage(msg);
     }
 

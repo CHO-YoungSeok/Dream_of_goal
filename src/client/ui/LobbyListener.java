@@ -31,4 +31,16 @@ public interface LobbyListener {
      * Called when user wants to refresh room list
      */
     void onRefreshRequested();
+
+    /**
+     * Called when user confirms editing room settings
+     * @param roomName New room name
+     * @param difficulty New difficulty level
+     * @param turnTimeLimit New turn time limit
+     * @param isPrivate Whether room is private
+     * @param password Room password (if private)
+     */
+    void onEditRoomConfirmed(String roomName, Message.Difficulty difficulty,
+                            Message.TurnTimeLimit turnTimeLimit,
+                            boolean isPrivate, String password);
 }
