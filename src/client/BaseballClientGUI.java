@@ -437,7 +437,16 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     }
 
     private void handleGuessResult(Message msg) {
-        gamePanel.displayMessage(msg.toString());
+        String currentUserId = stateManager.getCurrentUserId();
+        String guessUserId = msg.getUserId();
+
+        // Current user's predictions go to history panel
+        if (currentUserId != null && currentUserId.equals(guessUserId)) {
+            gamePanel.addPrediction(msg.getGuess(), msg.getStrike(), msg.getBall());
+        } else {
+            // Other players' predictions go to chat (light gray)
+            gamePanel.displayMessage(msg.toString(), new Color(100, 100, 100));
+        }
     }
 
     private void handleGameResult(Message msg) {

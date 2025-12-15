@@ -9,6 +9,8 @@ import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Game screen with number selection and chat
@@ -29,9 +31,15 @@ public class GamePanel extends JPanel {
     // User ID label
     private JLabel userIdLabel;
 
+    // Prediction history
+    private JPanel predictionHistoryPanel;
+    private JPanel predictionCardsContainer;
+    private List<PredictionEntry> predictionHistory;
+
     public GamePanel(GamePanelListener listener, GameStateManager stateManager) {
         this.listener = listener;
         this.stateManager = stateManager;
+        this.predictionHistory = new ArrayList<>();
         buildUI();
     }
 
@@ -94,8 +102,8 @@ public class GamePanel extends JPanel {
         // Top spacer (0~20%)
         JPanel spacer1 = new JPanel();
         spacer1.setOpaque(false);
-        spacer1.setPreferredSize(new Dimension(600, 80));
-        spacer1.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
+        spacer1.setPreferredSize(new Dimension(600, 60));
+        spacer1.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
         displayPanel.add(spacer1);
 
         // Number display panel (20~40%)
@@ -122,16 +130,16 @@ public class GamePanel extends JPanel {
         // Spacer (40~50%)
         JPanel spacer2 = new JPanel();
         spacer2.setOpaque(false);
-        spacer2.setPreferredSize(new Dimension(600, 20));
-        spacer2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        spacer2.setPreferredSize(new Dimension(600, 15));
+        spacer2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 15));
         displayPanel.add(spacer2);
 
         // Number card panel (50~85%)
         JPanel numberCardPanel = new JPanel();
         numberCardPanel.setOpaque(false);
         numberCardPanel.setLayout(new GridLayout(2, 5, 10, 10));
-        numberCardPanel.setPreferredSize(new Dimension(600, 240));
-        numberCardPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 240));
+        numberCardPanel.setPreferredSize(new Dimension(600, 220));
+        numberCardPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 220));
         numberCardPanel.setBorder(BorderFactory.createEmptyBorder(10, 75, 10, 75));
 
         for (int i = 0; i < 10; i++) {
@@ -143,11 +151,14 @@ public class GamePanel extends JPanel {
         }
         displayPanel.add(numberCardPanel);
 
+        // Prediction history panel
+        displayPanel.add(createPredictionHistoryPanel());
+
         // Spacer (85~85%)
         JPanel spacer3 = new JPanel();
         spacer3.setOpaque(false);
-        spacer3.setPreferredSize(new Dimension(600, 150));
-        spacer3.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
+        spacer3.setPreferredSize(new Dimension(600, 40));
+        spacer3.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         displayPanel.add(spacer3);
 
         // Chat display (85~100%)
@@ -160,8 +171,8 @@ public class GamePanel extends JPanel {
         scrollPane.setOpaque(false);
         scrollPane.getViewport().setOpaque(false);
         scrollPane.setBorder(null);
-        scrollPane.setPreferredSize(new Dimension(600, 150));
-        scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        scrollPane.setPreferredSize(new Dimension(600, 120));
+        scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
         displayPanel.add(scrollPane);
 
         return displayPanel;
@@ -181,6 +192,84 @@ public class GamePanel extends JPanel {
         panel.add(t_input, BorderLayout.CENTER);
         panel.add(b_send, BorderLayout.EAST);
         return panel;
+    }
+
+    private JPanel createPredictionHistoryPanel() {
+        // Main container panel
+        predictionHistoryPanel = new JPanel();
+        predictionHistoryPanel.setLayout(new BorderLayout());
+        predictionHistoryPanel.setOpaque(false);
+        predictionHistoryPanel.setPreferredSize(new Dimension(600, 120));
+        predictionHistoryPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+
+        // Title label
+        JLabel titleLabel = new JLabel("📊 My Predictions");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        predictionHistoryPanel.add(titleLabel, BorderLayout.NORTH);
+
+        // Cards container with GridLayout (5 columns)
+        predictionCardsContainer = new JPanel();
+        predictionCardsContainer.setLayout(new GridLayout(0, 5, 8, 8)); // 0 rows = unlimited, 5 columns
+        predictionCardsContainer.setOpaque(false);
+        predictionCardsContainer.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+        // Scroll pane for overflow
+        JScrollPane scrollPane = new JScrollPane(predictionCardsContainer);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.setBorder(null);
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+
+        predictionHistoryPanel.add(scrollPane, BorderLayout.CENTER);
+
+        return predictionHistoryPanel;
+    }
+
+    private JPanel createPredictionCard(PredictionEntry entry) {
+        JPanel card = new JPanel();
+        card.setLayout(new BorderLayout(3, 3));
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1, true),
+            BorderFactory.createEmptyBorder(6, 8, 6, 8)
+        ));
+        card.setPreferredSize(new Dimension(100, 55));
+        card.setMaximumSize(new Dimension(100, 55));
+
+        // Top: Baseball icon + guess
+        JLabel guessLabel = new JLabel("⚾ " + entry.getGuess());
+        guessLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        guessLabel.setForeground(new Color(33, 33, 33));
+        card.add(guessLabel, BorderLayout.NORTH);
+
+        // Bottom: Strike and Ball badges
+        JPanel resultPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        resultPanel.setOpaque(false);
+
+        // Strike badge
+        JLabel strikeLabel = new JLabel(entry.getStrike() + "S");
+        strikeLabel.setFont(new Font("Arial", Font.BOLD, 11));
+        strikeLabel.setForeground(Color.WHITE);
+        strikeLabel.setBackground(new Color(46, 125, 50)); // Green
+        strikeLabel.setOpaque(true);
+        strikeLabel.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+        resultPanel.add(strikeLabel);
+
+        // Ball badge
+        JLabel ballLabel = new JLabel(entry.getBall() + "B");
+        ballLabel.setFont(new Font("Arial", Font.BOLD, 11));
+        ballLabel.setForeground(new Color(33, 33, 33));
+        ballLabel.setBackground(new Color(251, 192, 45)); // Yellow
+        ballLabel.setOpaque(true);
+        ballLabel.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
+        resultPanel.add(ballLabel);
+
+        card.add(resultPanel, BorderLayout.CENTER);
+
+        return card;
     }
 
     /**
@@ -212,6 +301,9 @@ public class GamePanel extends JPanel {
         }
 
         currentPosition = 0;
+
+        // Clear prediction history when new game starts
+        clearPredictionHistory();
 
         // UI update
         numberDisplayPanel.revalidate();
@@ -279,6 +371,51 @@ public class GamePanel extends JPanel {
             }
         }
         currentPosition = 0;
+    }
+
+    /**
+     * Add a prediction to the history display
+     * @param guess The guessed number
+     * @param strike Strike count
+     * @param ball Ball count
+     */
+    public void addPrediction(String guess, int strike, int ball) {
+        if (predictionHistory == null) {
+            predictionHistory = new ArrayList<>();
+        }
+
+        // Add to data model
+        PredictionEntry entry = new PredictionEntry(guess, strike, ball);
+        predictionHistory.add(entry);
+
+        // Create and add card to UI
+        JPanel card = createPredictionCard(entry);
+        predictionCardsContainer.add(card);
+
+        // Refresh display
+        predictionCardsContainer.revalidate();
+        predictionCardsContainer.repaint();
+
+        // Auto-scroll to bottom
+        SwingUtilities.invokeLater(() -> {
+            JScrollBar vertical = ((JScrollPane)predictionHistoryPanel.getComponent(1))
+                .getVerticalScrollBar();
+            vertical.setValue(vertical.getMaximum());
+        });
+    }
+
+    /**
+     * Clear all predictions from history
+     */
+    public void clearPredictionHistory() {
+        if (predictionHistory != null) {
+            predictionHistory.clear();
+        }
+        if (predictionCardsContainer != null) {
+            predictionCardsContainer.removeAll();
+            predictionCardsContainer.revalidate();
+            predictionCardsContainer.repaint();
+        }
     }
 
     private void onNumberClick(int number) {
