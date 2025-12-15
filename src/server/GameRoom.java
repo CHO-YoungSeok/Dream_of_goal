@@ -34,7 +34,7 @@ public class GameRoom {
 
     // 정답이 설정된 플레이어 수 확인
     private final java.util.Set<String> answeredPlayers = new java.util.HashSet<>();
-
+    private java.util.Timer turnTimer;
     private ServerCore serverCore;
 
     public GameRoom(int roomId, String roomName, String roomMaster,
@@ -205,6 +205,30 @@ public class GameRoom {
             turnPlayer = players.get(playerIndex);
         }
 
+        // 기존 타이머 중지
+        if(turnTimer != null) {
+            turnTimer.cancel();
+        }
+
+        // 서버 턴 타이머 시작
+        if (turnPlayer != null && isGameRunning) {
+
+            int delay = turnTimeLimit.getSeconds() * 1000;
+            turnTimer = new java.util.Timer();
+
+            ClientHandler finalTurnPlayer = turnPlayer;
+            turnTimer.schedule(new java.util.TimerTask() {
+                @Override
+                public void run() {
+                    serverCore.printDisplay("Turn Timeout: " + finalTurnPlayer.userId + " in Room " + roomId);
+                    // 턴 아웃 메시지 전송
+                    finalTurnPlayer.sendMessage(new Message(Message.MessageType.TURN_TIMEOUT, "SERVER"));
+                    // 다음 턴으로 강제 진행
+                    nextTurn();
+                }
+            }, delay);
+        }
+
         Message turnMsg = new Message(Message.MessageType.TURN_INFO, "SERVER");
         turnMsg.setRound(currentRound);
         turnMsg.setTop(isTopHalf);
@@ -232,6 +256,12 @@ public class GameRoom {
             player.sendMessage(Message.createErrorMessage(
                     Message.ErrorCode.INVALID_INPUT_FORMAT));
             return;
+        }
+
+        // 추측이 완료되면 타이머 중지
+        if (turnTimer != null) {
+            turnTimer.cancel();
+            turnTimer = null;
         }
 
         // 상대방 정답 찾기
@@ -320,6 +350,11 @@ public class GameRoom {
     // 게임 종료
     public void endGame(String winnerId, boolean isDraw, int winnerTeam) {
         isGameRunning = false;
+
+        if (turnTimer != null) {
+            turnTimer.cancel();
+            turnTimer = null;
+        }
 
         Message endMsg = new Message(Message.MessageType.END_GAME, "SERVER");
         if (isDraw) {
