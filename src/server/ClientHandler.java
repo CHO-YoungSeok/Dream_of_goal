@@ -114,10 +114,15 @@ public class ClientHandler implements Runnable {
 
             // 게임 진행
             case GUESS:
-                if (currentRoom != null && !currentRoom.isGameRunning && currentRoom.players.size() == currentRoom.gameMode.getMaxPlayers()) {
-                    handleGameStartAnswer(msg);
-                } else {
-                    handleGuess(msg);
+                if (currentRoom != null) {
+                    boolean isAnswerSetupPhase = currentRoom.isGameRunning &&
+                            !currentRoom.playerAnswers.containsKey(userId);
+
+                    if (isAnswerSetupPhase) {
+                        handleGameStartAnswer(msg);
+                    } else {
+                        handleGuess(msg);
+                    }
                 }
                 break;
 
@@ -224,7 +229,7 @@ public class ClientHandler implements Runnable {
             response.setSuccess(true);
             sendMessage(response);
 
-            // 갱신된 방 정보를 클라이언트에게 다시 전송하여 목록 업데이트 강제
+            // 갱신된 방 정보를 클라이언트에게 다시 전송하여 목록 업데이트 강제 (클라이언트 목록 누락 문제 대비)
             Message updateMsg = room.createRoomUpdateMessage(null);
             sendMessage(updateMsg);
 
@@ -273,6 +278,7 @@ public class ClientHandler implements Runnable {
         response.setSuccess(true);
         sendMessage(response);
 
+        // 갱신된 방 정보를 클라이언트에게 다시 전송하여 목록 업데이트 강제 (클라이언트 목록 누락 문제 대비)
         Message updateMsg = room.createRoomUpdateMessage(null);
         sendMessage(updateMsg);
 

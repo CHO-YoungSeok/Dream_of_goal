@@ -5,6 +5,7 @@ import java.io.*;
 import java.util.Hashtable;
 import java.util.Vector;
 import java.util.stream.Collectors;
+import java.io.Serializable;
 
 // 게임 방 클래스
 
@@ -25,7 +26,7 @@ public class GameRoom {
 
     // 게임 진행 상태
     boolean isGameRunning = false;
-    Hashtable<String, String> playerAnswers = new Hashtable<>();
+    public Hashtable<String, String> playerAnswers = new Hashtable<>();
     Hashtable<String, Integer> playerTeams = new Hashtable<>();
     int currentRound = 1;
     boolean isTopHalf = true;
@@ -150,6 +151,8 @@ public class GameRoom {
 
     // 플레이어 정답 설정 및 완료 확인
     public boolean setPlayerAnswer(String userId, String answer) {
+        if (playerAnswers.containsKey(userId)) return false;
+
         playerAnswers.put(userId, answer);
         answeredPlayers.add(userId);
         serverCore.printDisplay("정답 등록: " + userId + " - " + answer);
@@ -165,6 +168,7 @@ public class GameRoom {
         isTopHalf = true;
         sendTurnInfo();
         serverCore.printDisplay("게임 턴 시작: " + gameId);
+        serverCore.broadcastUserList();
     }
 
     // 게임 시작
@@ -179,34 +183,13 @@ public class GameRoom {
             player.userStatus = Message.UserStatus.IN_GAME;
         }
 
-        // 정답 생성
-        if (gameMode == Message.GameMode.ONE_VS_ONE) {
-            for (ClientHandler player : players) {
-                String answer = serverCore.generateAnswer(difficulty.getDigitCount());
-                //playerAnswers.put(player.userId, answer);
-                //serverCore.printDisplay("게임 시작 - " + player.userId + "의 정답: " + answer);
-            }
-        } else {
-            String team1Answer = serverCore.generateAnswer(difficulty.getDigitCount());
-            String team2Answer = serverCore.generateAnswer(difficulty.getDigitCount());
-
-            /*
-            for (ClientHandler player : players) {
-                int teamNum = playerTeams.get(player.userId);
-                String answer = (teamNum == 1) ? team1Answer : team2Answer;
-                playerAnswers.put(player.userId, answer);
-                serverCore.printDisplay("게임 시작 - " + player.userId + " (Team " + teamNum + ")의 정답: " + answer);
-            } */
-        }
-
-        //currentRound = 1;
-        //isTopHalf = true;
-
+        // 정답 설정 메시지 브로드캐스트
         Message startMsg = new Message(Message.MessageType.START_GAME, "SERVER");
         startMsg.setGameMode(gameMode);
         startMsg.setDifficulty(difficulty);
         startMsg.setTurnTimeLimit(turnTimeLimit);
-        startMsg.setContent("게임이 시작되었습니다!");
+        startMsg.setGameId(gameId);
+        startMsg.setContent("정답을 설정해주세요. 게임 시작!");
         broadcastToRoom(startMsg);
 
         serverCore.broadcastUserList();
@@ -215,8 +198,10 @@ public class GameRoom {
     // 턴 정보 생성
     public void sendTurnInfo() {
         ClientHandler turnPlayer = null;
-        if (!players.isEmpty()) {
-            int playerIndex = ((currentRound - 1) * 2 + (isTopHalf ? 0 : 1)) % players.size();
+        if (players.size() > 0) {
+            // 턴 인덱스 계산 로직
+            int totalTurnsElapsed = (currentRound - 1) * 2 + (isTopHalf ? 0 : 1);
+            int playerIndex = totalTurnsElapsed % players.size();
             turnPlayer = players.get(playerIndex);
         }
 
@@ -291,7 +276,8 @@ public class GameRoom {
     // 현재 턴 플레이어 ID
     public String getCurrentTurnPlayerId() {
         if (players.isEmpty()) return null;
-        int playerIndex = ((currentRound - 1) * 2 + (isTopHalf ? 0 : 1)) % players.size();
+        int totalTurnsElapsed = (currentRound - 1) * 2 + (isTopHalf ? 0 : 1);
+        int playerIndex = totalTurnsElapsed % players.size();
         return players.get(playerIndex).userId;
     }
 
