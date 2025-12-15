@@ -278,7 +278,6 @@ public class ClientHandler implements Runnable {
         response.setSuccess(true);
         sendMessage(response);
 
-        // 갱신된 방 정보를 클라이언트에게 다시 전송하여 목록 업데이트 강제 (클라이언트 목록 누락 문제 대비)
         Message updateMsg = room.createRoomUpdateMessage(null);
         sendMessage(updateMsg);
 
@@ -487,8 +486,9 @@ public class ClientHandler implements Runnable {
         if (targetClient != null) {
             Message whisperMsg = Message.createChatMessage(
                     Message.MessageType.CHAT_WHISPER, userId, msg.getContent(), targetUserId);
+
             targetClient.sendMessage(whisperMsg);
-            sendMessage(whisperMsg);
+
         } else {
             sendMessage(Message.createErrorMessage(Message.ErrorCode.UNKNOWN_ERROR,
                     "사용자 '" + targetUserId + "'를 찾을 수 없습니다."));

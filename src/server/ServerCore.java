@@ -180,14 +180,25 @@ public class ServerCore {
     // 게임 로직 메서드들
     public String generateAnswer(int digitCount) {
         Vector<Integer> numbers = new Vector<>();
-        for (int i = 1; i <= 9; i++) {
+        for (int i = 0; i <= 9; i++) {
             numbers.add(i);
         }
         java.util.Collections.shuffle(numbers);
 
         StringBuilder answer = new StringBuilder();
-        for (int i = 0; i < digitCount; i++) {
-            answer.append(numbers.get(i));
+        int count = 0;
+        for (int num : numbers) {
+            if (count == 0 && num ==0) {
+                continue;
+            }
+            answer.append(num);
+            count++;
+            if(count == digitCount) {
+                break;
+            }
+        }
+        while(answer.length() < digitCount) {
+            return generateAnswer(digitCount);
         }
         return answer.toString();
     }
@@ -216,9 +227,14 @@ public class ServerCore {
         boolean[] used = new boolean[10];
         for (int i = 0; i < guess.length(); i++) {
             char c = guess.charAt(i);
-            if (c < '1' || c > '9') {
+            if (c < '0' || c > '9') {
                 return false;
             }
+
+            if (i == 0 && c == '0') {
+                return false;
+            }
+
             int digit = c - '0';
             if (used[digit]) {
                 return false;
