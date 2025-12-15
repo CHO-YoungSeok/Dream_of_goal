@@ -49,8 +49,13 @@ public class PlayerListCellRenderer extends DefaultListCellRenderer {
         }
 
         setText(displayText);
-        setOpaque(isSelected);
-        setBackground(isSelected ? Color.DARK_GRAY : new Color(0,0,0,0));
+        setOpaque(true); // Ensure the renderer paints its own background.
+        if (isSelected) {
+            setBackground(Color.DARK_GRAY);
+        } else {
+            // Provide a semi-transparent background for readability over the background image.
+            setBackground(new Color(10, 10, 10, 80));
+        }
 
         return this;
     }

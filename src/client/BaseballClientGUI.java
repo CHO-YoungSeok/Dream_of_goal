@@ -140,6 +140,8 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
                 gamePanel.displayMessage(msg.toString(), Color.BLUE);
                 break;
             case CHAT_ROOM:
+                handleChatRoom(msg);
+                break;
             case CHAT_WHISPER:
                 gamePanel.displayMessage(msg.toString(), Color.WHITE);
                 break;
@@ -441,9 +443,22 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             SwingUtilities.invokeLater(() -> {
                 lobbyPanel.addChatMessage(senderUserId, content);
             });
-        } else {
-            // Display in game panel for other states
-            gamePanel.displayMessage(msg.toString(), Color.RED);
+        }
+    }
+
+    private void handleChatRoom(Message msg) {
+        String senderUserId = msg.getUserId();
+        String content = msg.getContent();
+
+        if (currentState == UIState.ROOM_WAITING_SCREEN) {
+            SwingUtilities.invokeLater(() -> {
+                roomWaitingPanel.addChatMessage(senderUserId, content);
+            });
+        } else if (currentState == UIState.GAME_SCREEN) {
+            SwingUtilities.invokeLater(() -> {
+                // The existing gamePanel.displayMessage shows the full message object, let's pass that
+                gamePanel.displayMessage(msg.toString(), Color.WHITE);
+            });
         }
     }
 
@@ -542,6 +557,13 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     @Override
     public void onLobbyChatSent(String message) {
         Message msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId());
+        msg.setContent(message);
+        networkManager.sendMessage(msg);
+    }
+
+    @Override
+    public void onRoomChatSent(String message) {
+        Message msg = new Message(Message.MessageType.CHAT_ROOM, stateManager.getCurrentUserId());
         msg.setContent(message);
         networkManager.sendMessage(msg);
     }

@@ -15,6 +15,11 @@ public class RoomWaitingPanel extends JPanel {
     private RoomWaitingListener listener;
     private GameStateManager stateManager;
 
+    // 채팅 관련 컴포넌트
+    private JTextArea t_chatDisplay;
+    private JTextField t_chatInput;
+    private JButton b_sendChat;
+
     public RoomWaitingPanel(RoomWaitingListener listener, GameStateManager stateManager) {
         this.listener = listener;
         this.stateManager = stateManager;
@@ -48,10 +53,16 @@ public class RoomWaitingPanel extends JPanel {
 
         add(topPanel, BorderLayout.NORTH);
 
+        // Main content panel (players, chat)
+        JPanel mainContentPanel = new JPanel();
+        mainContentPanel.setLayout(new BoxLayout(mainContentPanel, BoxLayout.Y_AXIS));
+        mainContentPanel.setOpaque(false);
+
         // Center panel (player list)
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setOpaque(false);
         centerPanel.setBorder(BorderFactory.createEmptyBorder(10, 40, 10, 40));
+        centerPanel.setPreferredSize(new Dimension(800, 250)); // Give it a preferred size
 
         JLabel l_players = new JLabel("플레이어 목록");
         l_players.setFont(new Font("Arial", Font.BOLD, 18));
@@ -71,8 +82,47 @@ public class RoomWaitingPanel extends JPanel {
         scrollPane.setOpaque(false);
         scrollPane.getViewport().setOpaque(false);
         centerPanel.add(scrollPane, BorderLayout.CENTER);
+        mainContentPanel.add(centerPanel);
 
-        add(centerPanel, BorderLayout.CENTER);
+
+        // ===========================================
+        // Chat Section
+        // ===========================================
+        JPanel chatSection = new JPanel(new BorderLayout());
+        chatSection.setOpaque(false);
+        chatSection.setPreferredSize(new Dimension(800, 180));
+        chatSection.setBorder(BorderFactory.createEmptyBorder(5, 40, 5, 40));
+
+        // Chat display area
+        t_chatDisplay = new JTextArea();
+        t_chatDisplay.setEditable(false);
+        t_chatDisplay.setFont(new Font("Arial", Font.PLAIN, 12));
+        t_chatDisplay.setLineWrap(true);
+        t_chatDisplay.setWrapStyleWord(true);
+        JScrollPane chatScrollPane = new JScrollPane(t_chatDisplay);
+        chatScrollPane.setPreferredSize(new Dimension(720, 120));
+        chatSection.add(chatScrollPane, BorderLayout.CENTER);
+
+        // Chat input panel
+        JPanel chatInputPanel = new JPanel(new BorderLayout(5, 0));
+        chatInputPanel.setOpaque(false);
+        chatInputPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+
+        t_chatInput = new JTextField();
+        t_chatInput.setFont(new Font("Arial", Font.PLAIN, 14));
+        t_chatInput.addActionListener(e -> sendChatMessage());
+
+        b_sendChat = new JButton("전송");
+        b_sendChat.setFont(new Font("Arial", Font.BOLD, 14));
+        b_sendChat.setPreferredSize(new Dimension(80, 30));
+        b_sendChat.addActionListener(e -> sendChatMessage());
+
+        chatInputPanel.add(t_chatInput, BorderLayout.CENTER);
+        chatInputPanel.add(b_sendChat, BorderLayout.EAST);
+        chatSection.add(chatInputPanel, BorderLayout.SOUTH);
+
+        mainContentPanel.add(chatSection);
+        add(mainContentPanel, BorderLayout.CENTER);
 
         // Bottom panel (buttons)
         JPanel bottomPanel = new JPanel(new GridLayout(2, 2, 10, 10));
@@ -137,6 +187,28 @@ public class RoomWaitingPanel extends JPanel {
         ImageIcon background = new ImageIcon("src/image/intro.jpg");
         Image img = background.getImage();
         g.drawImage(img, 0, 0, getWidth(), getHeight(), this);
+    }
+
+    /**
+     * Send chat message to room
+     */
+    private void sendChatMessage() {
+        String message = t_chatInput.getText().trim();
+        if (!message.isEmpty()) {
+            listener.onRoomChatSent(message);
+            t_chatInput.setText("");
+        }
+    }
+
+    /**
+     * Add a chat message to the display
+     * @param userName User who sent the message
+     * @param message Message content
+     */
+    public void addChatMessage(String userName, String message) {
+        String timestamp = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+        t_chatDisplay.append(String.format("[%s] %s: %s\n", timestamp, userName, message));
+        t_chatDisplay.setCaretPosition(t_chatDisplay.getDocument().getLength());
     }
 
     /**
