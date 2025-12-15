@@ -114,7 +114,11 @@ public class ClientHandler implements Runnable {
 
             // 게임 진행
             case GUESS:
-                handleGuess(msg); // 숫자 추측 요청
+                if (currentRoom != null && !currentRoom.isGameRunning && currentRoom.players.size() == currentRoom.gameMode.getMaxPlayers()) {
+                    handleGameStartAnswer(msg);
+                } else {
+                    handleGuess(msg);
+                }
                 break;
 
             // 채팅
@@ -144,6 +148,7 @@ public class ClientHandler implements Runnable {
     }
 
     // --- 인증 관련 ---
+
     // 로그인 처리
     private void handleLogin(Message msg) {
         String userId = msg.getUserId();
@@ -218,6 +223,11 @@ public class ClientHandler implements Runnable {
             response.setType(Message.MessageType.CREATE_ROOM_RESPONSE);
             response.setSuccess(true);
             sendMessage(response);
+
+            // 갱신된 방 정보를 클라이언트에게 다시 전송하여 목록 업데이트 강제
+            Message updateMsg = room.createRoomUpdateMessage(null);
+            sendMessage(updateMsg);
+
             serverCore.broadcastUserList(); // 상태 변경 브로드캐스트
         } else {
             sendMessage(Message.createErrorMessage(Message.ErrorCode.SERVER_FULL,
@@ -262,6 +272,10 @@ public class ClientHandler implements Runnable {
         response.setType(Message.MessageType.JOIN_ROOM_RESPONSE);
         response.setSuccess(true);
         sendMessage(response);
+
+        Message updateMsg = room.createRoomUpdateMessage(null);
+        sendMessage(updateMsg);
+
         serverCore.broadcastUserList();
     }
 
@@ -374,6 +388,18 @@ public class ClientHandler implements Runnable {
             currentRoom.removePlayer(targetPlayer);
             targetPlayer.currentRoom = null;
             serverCore.printDisplay(userId + "가 " + targetUserId + "를 강제 퇴장시킴");
+        }
+    }
+
+    // 정답 처리
+    private void handleGameStartAnswer(Message msg) {
+        if (currentRoom == null) return;
+
+        // GameRoom에 정답을 등록하고, 모든 플레이어의 정답이 등록되었는지 확인
+        boolean allAnswered = currentRoom.setPlayerAnswer(userId, msg.getGuess());
+        serverCore.printDisplay(userId + " 정답 설정 완료. [" + msg.getGuess() + "]");
+        if (allAnswered) {
+            currentRoom.startFirstTurn(); // 모든 정답이 등록되면 첫 턴을 시작
         }
     }
 
