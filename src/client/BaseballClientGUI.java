@@ -137,7 +137,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
                 handleChatAll(msg);
                 break;
             case CHAT_TEAM:
-                gamePanel.displayMessage(msg.toString(), Color.BLUE);
+                gamePanel.displayMessage(msg.toString(), new Color(0, 0, 139)); // Dark blue
                 break;
             case CHAT_ROOM:
                 handleChatRoom(msg);
@@ -165,13 +165,13 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
 
         switch (currentState) {
             case LOBBY_SCREEN:
-                lobbyPanel.addChatMessage(displayMessage, Color.PINK);
+                lobbyPanel.addChatMessage(displayMessage, new Color(139, 0, 0)); // Dark red
                 break;
             case ROOM_WAITING_SCREEN:
-                roomWaitingPanel.addChatMessage(displayMessage, Color.PINK);
+                roomWaitingPanel.addChatMessage(displayMessage, new Color(139, 0, 0)); // Dark red
                 break;
             case GAME_SCREEN:
-                gamePanel.displayMessage(displayMessage, Color.PINK);
+                gamePanel.displayMessage(displayMessage, new Color(139, 0, 0)); // Dark red
                 break;
         }
     }
@@ -468,11 +468,11 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         String formattedMessage = String.format("[전체] %s: %s", senderUserId, content);
 
         if (currentState == UIState.LOBBY_SCREEN) {
-            SwingUtilities.invokeLater(() -> lobbyPanel.addChatMessage(formattedMessage, Color.YELLOW));
+            SwingUtilities.invokeLater(() -> lobbyPanel.addChatMessage(formattedMessage, new Color(0, 128, 0))); // Dark green
         } else if (currentState == UIState.ROOM_WAITING_SCREEN) {
-            SwingUtilities.invokeLater(() -> roomWaitingPanel.addChatMessage(formattedMessage, Color.YELLOW));
+            SwingUtilities.invokeLater(() -> roomWaitingPanel.addChatMessage(formattedMessage, new Color(0, 128, 0))); // Dark green
         } else if (currentState == UIState.GAME_SCREEN) {
-            SwingUtilities.invokeLater(() -> gamePanel.displayMessage(formattedMessage, Color.YELLOW));
+            SwingUtilities.invokeLater(() -> gamePanel.displayMessage(formattedMessage, new Color(0, 128, 0))); // Dark green
         }
     }
 
@@ -482,9 +482,9 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         String formattedMessage = String.format("%s: %s", senderUserId, content);
 
         if (currentState == UIState.ROOM_WAITING_SCREEN) {
-            SwingUtilities.invokeLater(() -> roomWaitingPanel.addChatMessage(formattedMessage, Color.WHITE));
+            SwingUtilities.invokeLater(() -> roomWaitingPanel.addChatMessage(formattedMessage, new Color(50, 50, 50))); // Dark gray
         } else if (currentState == UIState.GAME_SCREEN) {
-            SwingUtilities.invokeLater(() -> gamePanel.displayMessage(formattedMessage, Color.WHITE));
+            SwingUtilities.invokeLater(() -> gamePanel.displayMessage(formattedMessage, new Color(50, 50, 50))); // Dark gray
         }
     }
 
@@ -583,23 +583,32 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     @Override
     public void onLobbyChatSent(String message) {
         Message msg;
-        if (message.startsWith("/w ")) {
+        if (message.equals("/help")) {
+            lobbyPanel.addChatMessage(" ", Color.BLACK);
+            lobbyPanel.addChatMessage(" ", Color.BLACK);
+            lobbyPanel.addChatMessage(" ", Color.BLACK);
+            lobbyPanel.addChatMessage("/stats [user_id]: [user_id]사용자의 전적 확인하기", new Color(0, 139, 139)); // Dark cyan
+            lobbyPanel.addChatMessage("/all: 전체 채팅하기", new Color(0, 139, 139)); // Dark cyan
+            lobbyPanel.addChatMessage("/team: 팀 채팅하기", new Color(0, 139, 139)); // Dark cyan
+            lobbyPanel.addChatMessage("/w [user_id]: 귓속말 하기", new Color(0, 139, 139)); // Dark cyan
+            return;
+        } else if (message.startsWith("/w ")) {
             String[] parts = message.split(" ", 3);
             if (parts.length < 3) {
-                lobbyPanel.addChatMessage("Usage: /w [ID] [Message]", Color.ORANGE);
+                lobbyPanel.addChatMessage("Usage: /w [ID] [Message]", new Color(255, 140, 0)); // Dark orange
                 return;
             }
             String targetId = parts[1];
             String content = parts[2];
             msg = Message.createChatMessage(Message.MessageType.CHAT_WHISPER, stateManager.getCurrentUserId(), content, targetId);
-            lobbyPanel.addChatMessage(String.format("[To %s] %s", targetId, content), Color.PINK);
+            lobbyPanel.addChatMessage(String.format("[To %s] %s", targetId, content), new Color(139, 0, 0)); // Dark red
         } else if (message.startsWith("/all ")) {
             String content = message.substring(5);
             msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId(), content);
-            lobbyPanel.addChatMessage(String.format("[전체] %s: %s", stateManager.getCurrentUserId(), content), Color.YELLOW);
+            lobbyPanel.addChatMessage(String.format("[전체] %s: %s", stateManager.getCurrentUserId(), content), new Color(0, 128, 0)); // Dark green
         } else {
             msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId(), message);
-            lobbyPanel.addChatMessage(String.format("[전체] %s: %s", stateManager.getCurrentUserId(), message), Color.YELLOW);
+            lobbyPanel.addChatMessage(String.format("[전체] %s: %s", stateManager.getCurrentUserId(), message), new Color(0, 128, 0)); // Dark green
         }
         networkManager.sendMessage(msg);
     }
@@ -607,23 +616,32 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     @Override
     public void onRoomChatSent(String message) {
         Message msg;
-        if (message.startsWith("/w ")) {
+        if (message.equals("/help")) {
+            roomWaitingPanel.addChatMessage(" ", Color.BLACK);
+            roomWaitingPanel.addChatMessage(" ", Color.BLACK);
+            roomWaitingPanel.addChatMessage(" ", Color.BLACK);
+            roomWaitingPanel.addChatMessage("/stats [user_id]: [user_id]사용자의 전적 확인하기", new Color(0, 139, 139)); // Dark cyan
+            roomWaitingPanel.addChatMessage("/all: 전체 채팅하기", new Color(0, 139, 139)); // Dark cyan
+            roomWaitingPanel.addChatMessage("/team: 팀 채팅하기", new Color(0, 139, 139)); // Dark cyan
+            roomWaitingPanel.addChatMessage("/w [user_id]: 귓속말 하기", new Color(0, 139, 139)); // Dark cyan
+            return;
+        } else if (message.startsWith("/w ")) {
             String[] parts = message.split(" ", 3);
             if (parts.length < 3) {
-                roomWaitingPanel.addChatMessage("Usage: /w [ID] [Message]", Color.ORANGE);
+                roomWaitingPanel.addChatMessage("Usage: /w [ID] [Message]", new Color(255, 140, 0)); // Dark orange
                 return;
             }
             String targetId = parts[1];
             String content = parts[2];
             msg = Message.createChatMessage(Message.MessageType.CHAT_WHISPER, stateManager.getCurrentUserId(), content, targetId);
-            roomWaitingPanel.addChatMessage(String.format("[To %s] %s", targetId, content), Color.PINK);
+            roomWaitingPanel.addChatMessage(String.format("[To %s] %s", targetId, content), new Color(139, 0, 0)); // Dark red
         } else if (message.startsWith("/all ")) {
             String content = message.substring(5);
             msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId(), content);
-            roomWaitingPanel.addChatMessage(String.format("[전체] %s: %s", stateManager.getCurrentUserId(), content), Color.YELLOW);
+            roomWaitingPanel.addChatMessage(String.format("[전체] %s: %s", stateManager.getCurrentUserId(), content), new Color(0, 128, 0)); // Dark green
         } else {
             msg = new Message(Message.MessageType.CHAT_ROOM, stateManager.getCurrentUserId(), message);
-            roomWaitingPanel.addChatMessage(String.format("%s: %s", stateManager.getCurrentUserId(), message), Color.WHITE);
+            roomWaitingPanel.addChatMessage(String.format("%s: %s", stateManager.getCurrentUserId(), message), new Color(50, 50, 50)); // Dark gray
         }
         networkManager.sendMessage(msg);
     }
@@ -692,43 +710,59 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     public void onChatSent(String message) {
         Message msg;
         String displayMessagePrefix = "나: ";
+        Color displayColor = new Color(50, 50, 50); // Default: Dark gray
 
         // Parse commands
-        if (message.startsWith("/w ") || message.startsWith("/whisper ")) {
+        if (message.equals("/help")) {
+            gamePanel.displayMessage(" ", Color.BLACK);
+            gamePanel.displayMessage(" ", Color.BLACK);
+            gamePanel.displayMessage(" ", Color.BLACK);
+            gamePanel.displayMessage("/stats [user_id]: [user_id]사용자의 전적 확인하기", new Color(0, 139, 139)); // Dark cyan
+            gamePanel.displayMessage("/all: 전체 채팅하기", new Color(0, 139, 139)); // Dark cyan
+            gamePanel.displayMessage("/team: 팀 채팅하기", new Color(0, 139, 139)); // Dark cyan
+            gamePanel.displayMessage("/w [user_id]: 귓속말 하기", new Color(0, 139, 139)); // Dark cyan
+            return;
+        } else if (message.startsWith("/w ") || message.startsWith("/whisper ")) {
             String[] parts = message.split(" ", 3);
             if (parts.length < 3) {
-                gamePanel.displayMessage("귓속말 사용법: /w [대상ID] [메시지]", Color.ORANGE);
+                gamePanel.displayMessage("귓속말 사용법: /w [대상ID] [메시지]", new Color(255, 140, 0)); // Dark orange
                 return;
             }
             String targetId = parts[1];
             String content = parts[2];
             msg = Message.createChatMessage(Message.MessageType.CHAT_WHISPER, stateManager.getCurrentUserId(), content, targetId);
             displayMessagePrefix = "[To " + targetId + "]: ";
+            displayColor = new Color(139, 0, 0); // Dark red
         } else if (message.startsWith("/all ")) {
             String content = message.substring(5);
             msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId(), content);
             displayMessagePrefix = "[To All]: ";
+            displayColor = new Color(0, 128, 0); // Dark green
         } else if (message.startsWith("/team ")) {
             String content = message.substring(6);
             msg = new Message(Message.MessageType.CHAT_TEAM, stateManager.getCurrentUserId(), content);
             displayMessagePrefix = "[To Team]: ";
+            displayColor = new Color(0, 0, 139); // Dark blue
         } else if (message.startsWith("/room ")) {
             String content = message.substring(6);
             msg = new Message(Message.MessageType.CHAT_ROOM, stateManager.getCurrentUserId(), content);
             displayMessagePrefix = "[To Room]: ";
+            displayColor = new Color(50, 50, 50); // Dark gray
         } else {
             // Default: room chat if in room/game
             if (currentState == UIState.ROOM_WAITING_SCREEN || currentState == UIState.GAME_SCREEN) {
                 msg = new Message(Message.MessageType.CHAT_ROOM, stateManager.getCurrentUserId(), message);
                 displayMessagePrefix = "[To Room]: ";
+                displayColor = new Color(50, 50, 50); // Dark gray
             } else {
                 msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId(), message);
                 displayMessagePrefix = "[To All]: ";
+                displayColor = new Color(0, 128, 0); // Dark green
             }
         }
 
         networkManager.sendMessage(msg);
-        gamePanel.displayMessage(displayMessagePrefix + msg.getContent(), Color.YELLOW);
+        gamePanel.displayMessage(displayMessagePrefix + msg.getContent(), displayColor);
     }
 
     @Override

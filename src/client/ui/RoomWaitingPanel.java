@@ -100,8 +100,8 @@ public class RoomWaitingPanel extends JPanel {
         // Chat display area
         t_chatDisplay = new JTextPane();
         t_chatDisplay.setEditable(false);
-        t_chatDisplay.setFont(new Font("Arial", Font.PLAIN, 12));
-        t_chatDisplay.setOpaque(false);
+        t_chatDisplay.setFont(new Font("Arial", Font.PLAIN, 15));
+        t_chatDisplay.setOpaque(true);
         JScrollPane chatScrollPane = new JScrollPane(t_chatDisplay);
         chatScrollPane.setOpaque(false);
         chatScrollPane.getViewport().setOpaque(false);
@@ -224,7 +224,7 @@ public class RoomWaitingPanel extends JPanel {
      * @param message Message content
      */
     public void addChatMessage(String userName, String message) {
-        addChatMessage(String.format("%s: %s", userName, message), Color.WHITE);
+        addChatMessage(String.format("%s: %s", userName, message), new Color(50, 50, 50)); // Dark gray
     }
 
     /**

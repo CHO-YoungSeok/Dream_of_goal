@@ -417,6 +417,14 @@ public class ClientHandler implements Runnable {
     // 방 채팅
     private void handleRoomChat(Message msg) {
         if (currentRoom != null) {
+            String content = msg.getContent();
+
+            // /stats 명령어 처리
+            if (content != null && content.startsWith("/stats")) {
+                handleStatsChatCommand(content, Message.MessageType.CHAT_ROOM);
+                return;
+            }
+
             Message chatMsg = Message.createChatMessage(
                     Message.MessageType.CHAT_ROOM, userId, msg.getContent(), null);
             currentRoom.broadcastToRoomExcept(chatMsg, this);
@@ -442,6 +450,14 @@ public class ClientHandler implements Runnable {
 
     // 전체 채팅
     private void handleAllChat(Message msg) {
+        String content = msg.getContent();
+
+        // /stats 명령어 처리
+        if (content != null && content.startsWith("/stats")) {
+            handleStatsChatCommand(content, Message.MessageType.CHAT_ALL);
+            return;
+        }
+
         Message chatMsg = Message.createChatMessage(
                 Message.MessageType.CHAT_ALL, userId, msg.getContent(), null);
         serverCore.broadcastChatAllExcept(chatMsg, this);
@@ -484,6 +500,44 @@ public class ClientHandler implements Runnable {
         Message response = serverCore.getAuthManager().getStats(targetUserId);
         if (response != null) {
             sendMessage(response);
+        }
+    }
+
+    // 채팅 명령어로 전적 조회 (/stats [id])
+    private void handleStatsChatCommand(String content, Message.MessageType responseType) {
+        String[] parts = content.trim().split("\\s+");
+        String targetUserId;
+
+        // /stats 만 입력한 경우 자기 자신의 전적 조회
+        if (parts.length == 1) {
+            targetUserId = userId;
+        } else {
+            targetUserId = parts[1];
+        }
+
+        // AuthManager를 통해 전적 조회
+        Message statsResponse = serverCore.getAuthManager().getStats(targetUserId);
+        if (statsResponse != null && statsResponse.getData() != null) {
+            @SuppressWarnings("unchecked")
+            java.util.Hashtable<String, String> stats = (java.util.Hashtable<String, String>) statsResponse.getData();
+
+            String wins = stats.getOrDefault("wins", "0");
+            String losses = stats.getOrDefault("losses", "0");
+            String draws = stats.getOrDefault("draws", "0");
+            String winRate = stats.getOrDefault("winRate", "0.0");
+
+            // 채팅 메시지로 전적 정보 전송
+            String statsMessage = String.format(
+                "[%s님의 전적]\n승: %s | 패: %s | 무: %s | 승률: %s%%",
+                targetUserId, wins, losses, draws, winRate
+            );
+
+            Message chatResponse = new Message(responseType, "SERVER", statsMessage);
+            sendMessage(chatResponse);
+        } else {
+            Message errorMsg = new Message(responseType, "SERVER",
+                "전적 정보를 조회할 수 없습니다.");
+            sendMessage(errorMsg);
         }
     }
 

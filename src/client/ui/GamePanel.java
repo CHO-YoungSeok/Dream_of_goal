@@ -144,7 +144,8 @@ public class GamePanel extends JPanel {
         // Chat display (85~100%)
         t_display = new JTextPane();
         t_display.setEditable(false);
-        t_display.setOpaque(false);
+        t_display.setOpaque(true);
+        t_display.setFont(new Font("Arial", Font.PLAIN, 15));
         t_display.setBorder(null);
         JScrollPane scrollPane = new JScrollPane(t_display);
         scrollPane.setOpaque(false);
@@ -213,7 +214,7 @@ public class GamePanel extends JPanel {
      * @param message Message to display
      */
     public void displayMessage(String message) {
-        displayMessage(message, Color.WHITE);
+        displayMessage(message, new Color(50, 50, 50)); // Dark gray
     }
 
     /**
@@ -243,7 +244,7 @@ public class GamePanel extends JPanel {
     public void updateTurnInfo(String roundInfo, String turnInfo, boolean isMyTurn) {
         l_roundInfo.setText(roundInfo);
         l_turnInfo.setText(turnInfo);
-        l_turnInfo.setForeground(isMyTurn ? Color.YELLOW : Color.WHITE);
+        l_turnInfo.setForeground(isMyTurn ? new Color(0, 128, 0) : new Color(50, 50, 50)); // Dark green if my turn, dark gray otherwise
         b_submit.setEnabled(isMyTurn);
     }
 
