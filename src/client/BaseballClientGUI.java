@@ -270,6 +270,9 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
                 stateManager.setPlayerReadyStatus(readyStatus);
             }
 
+            roomWaitingPanel.updateRoomInfo();
+            roomWaitingPanel.updatePlayerList();
+
             switchToRoomWaitingScreen();
         } else {
             JOptionPane.showMessageDialog(this,
@@ -303,6 +306,9 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
                 stateManager.setRoomPlayersList(players);
                 stateManager.setPlayerReadyStatus(readyStatus);
             }
+
+            roomWaitingPanel.updateRoomInfo();
+            roomWaitingPanel.updatePlayerList();
 
             switchToRoomWaitingScreen();
         } else {

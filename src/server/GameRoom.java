@@ -84,8 +84,8 @@ public class GameRoom {
 
         players.add(player);
 
-        // 플레이어 초기에 false로 설정
-        readyStatus.put(player.userId, false);
+        boolean isMaster = player.userId.equals(roomMaster);
+        readyStatus.put(player.userId, isMaster);
 
         // 2v2 팀 배정
         if (gameMode == Message.GameMode.TWO_VS_TWO) {
