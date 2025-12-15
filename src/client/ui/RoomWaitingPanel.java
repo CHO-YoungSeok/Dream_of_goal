@@ -2,6 +2,10 @@ package client.ui;
 
 import client.state.GameStateManager;
 import javax.swing.*;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
 import java.awt.*;
 
 /**
@@ -16,7 +20,7 @@ public class RoomWaitingPanel extends JPanel {
     private GameStateManager stateManager;
 
     // 채팅 관련 컴포넌트
-    private JTextArea t_chatDisplay;
+    private JTextPane t_chatDisplay;
     private JTextField t_chatInput;
     private JButton b_sendChat;
 
@@ -94,12 +98,13 @@ public class RoomWaitingPanel extends JPanel {
         chatSection.setBorder(BorderFactory.createEmptyBorder(5, 40, 5, 40));
 
         // Chat display area
-        t_chatDisplay = new JTextArea();
+        t_chatDisplay = new JTextPane();
         t_chatDisplay.setEditable(false);
         t_chatDisplay.setFont(new Font("Arial", Font.PLAIN, 12));
-        t_chatDisplay.setLineWrap(true);
-        t_chatDisplay.setWrapStyleWord(true);
+        t_chatDisplay.setOpaque(false);
         JScrollPane chatScrollPane = new JScrollPane(t_chatDisplay);
+        chatScrollPane.setOpaque(false);
+        chatScrollPane.getViewport().setOpaque(false);
         chatScrollPane.setPreferredSize(new Dimension(720, 120));
         chatSection.add(chatScrollPane, BorderLayout.CENTER);
 
@@ -200,15 +205,26 @@ public class RoomWaitingPanel extends JPanel {
         }
     }
 
+    public void addChatMessage(String message, Color color) {
+        StyledDocument doc = t_chatDisplay.getStyledDocument();
+        SimpleAttributeSet attrs = new SimpleAttributeSet();
+        StyleConstants.setForeground(attrs, color);
+
+        try {
+            doc.insertString(doc.getLength(), message + "\n", attrs);
+        } catch (BadLocationException e) {
+            System.err.println("Error appending message: " + e.getMessage());
+        }
+        t_chatDisplay.setCaretPosition(doc.getLength());
+    }
+
     /**
      * Add a chat message to the display
      * @param userName User who sent the message
      * @param message Message content
      */
     public void addChatMessage(String userName, String message) {
-        String timestamp = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
-        t_chatDisplay.append(String.format("[%s] %s: %s\n", timestamp, userName, message));
-        t_chatDisplay.setCaretPosition(t_chatDisplay.getDocument().getLength());
+        addChatMessage(String.format("%s: %s", userName, message), Color.WHITE);
     }
 
     /**

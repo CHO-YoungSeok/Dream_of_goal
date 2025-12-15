@@ -143,13 +143,35 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
                 handleChatRoom(msg);
                 break;
             case CHAT_WHISPER:
-                gamePanel.displayMessage(msg.toString(), Color.WHITE);
+                handleWhisper(msg);
                 break;
             case ERROR:
                 handleError(msg);
                 break;
             default:
                 System.out.println("Unhandled message type: " + msg.getType());
+                break;
+        }
+    }
+
+    private void handleWhisper(Message msg) {
+        String displayMessage;
+        // Check if the message is from the current user
+        if (msg.getUserId().equals(stateManager.getCurrentUserId())) {
+            displayMessage = String.format("[To %s] %s", msg.getTargetUserId(), msg.getContent());
+        } else {
+            displayMessage = String.format("[From %s] %s", msg.getUserId(), msg.getContent());
+        }
+
+        switch (currentState) {
+            case LOBBY_SCREEN:
+                lobbyPanel.addChatMessage(displayMessage, Color.PINK);
+                break;
+            case ROOM_WAITING_SCREEN:
+                roomWaitingPanel.addChatMessage(displayMessage, Color.PINK);
+                break;
+            case GAME_SCREEN:
+                gamePanel.displayMessage(displayMessage, Color.PINK);
                 break;
         }
     }
@@ -437,28 +459,26 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     private void handleChatAll(Message msg) {
         String senderUserId = msg.getUserId();
         String content = msg.getContent();
+        String formattedMessage = String.format("[전체] %s: %s", senderUserId, content);
 
-        // Display in lobby panel if in lobby state
         if (currentState == UIState.LOBBY_SCREEN) {
-            SwingUtilities.invokeLater(() -> {
-                lobbyPanel.addChatMessage(senderUserId, content);
-            });
+            SwingUtilities.invokeLater(() -> lobbyPanel.addChatMessage(formattedMessage, Color.YELLOW));
+        } else if (currentState == UIState.ROOM_WAITING_SCREEN) {
+            SwingUtilities.invokeLater(() -> roomWaitingPanel.addChatMessage(formattedMessage, Color.YELLOW));
+        } else if (currentState == UIState.GAME_SCREEN) {
+            SwingUtilities.invokeLater(() -> gamePanel.displayMessage(formattedMessage, Color.YELLOW));
         }
     }
 
     private void handleChatRoom(Message msg) {
         String senderUserId = msg.getUserId();
         String content = msg.getContent();
+        String formattedMessage = String.format("%s: %s", senderUserId, content);
 
         if (currentState == UIState.ROOM_WAITING_SCREEN) {
-            SwingUtilities.invokeLater(() -> {
-                roomWaitingPanel.addChatMessage(senderUserId, content);
-            });
+            SwingUtilities.invokeLater(() -> roomWaitingPanel.addChatMessage(formattedMessage, Color.WHITE));
         } else if (currentState == UIState.GAME_SCREEN) {
-            SwingUtilities.invokeLater(() -> {
-                // The existing gamePanel.displayMessage shows the full message object, let's pass that
-                gamePanel.displayMessage(msg.toString(), Color.WHITE);
-            });
+            SwingUtilities.invokeLater(() -> gamePanel.displayMessage(formattedMessage, Color.WHITE));
         }
     }
 
@@ -556,15 +576,49 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
 
     @Override
     public void onLobbyChatSent(String message) {
-        Message msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId());
-        msg.setContent(message);
+        Message msg;
+        if (message.startsWith("/w ")) {
+            String[] parts = message.split(" ", 3);
+            if (parts.length < 3) {
+                lobbyPanel.addChatMessage("Usage: /w [ID] [Message]", Color.ORANGE);
+                return;
+            }
+            String targetId = parts[1];
+            String content = parts[2];
+            msg = Message.createChatMessage(Message.MessageType.CHAT_WHISPER, stateManager.getCurrentUserId(), content, targetId);
+            lobbyPanel.addChatMessage(String.format("[To %s] %s", targetId, content), Color.PINK);
+        } else if (message.startsWith("/all ")) {
+            String content = message.substring(5);
+            msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId(), content);
+            lobbyPanel.addChatMessage(String.format("[전체] %s: %s", stateManager.getCurrentUserId(), content), Color.YELLOW);
+        } else {
+            msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId(), message);
+            lobbyPanel.addChatMessage(String.format("[전체] %s: %s", stateManager.getCurrentUserId(), message), Color.YELLOW);
+        }
         networkManager.sendMessage(msg);
     }
 
     @Override
     public void onRoomChatSent(String message) {
-        Message msg = new Message(Message.MessageType.CHAT_ROOM, stateManager.getCurrentUserId());
-        msg.setContent(message);
+        Message msg;
+        if (message.startsWith("/w ")) {
+            String[] parts = message.split(" ", 3);
+            if (parts.length < 3) {
+                roomWaitingPanel.addChatMessage("Usage: /w [ID] [Message]", Color.ORANGE);
+                return;
+            }
+            String targetId = parts[1];
+            String content = parts[2];
+            msg = Message.createChatMessage(Message.MessageType.CHAT_WHISPER, stateManager.getCurrentUserId(), content, targetId);
+            roomWaitingPanel.addChatMessage(String.format("[To %s] %s", targetId, content), Color.PINK);
+        } else if (message.startsWith("/all ")) {
+            String content = message.substring(5);
+            msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId(), content);
+            roomWaitingPanel.addChatMessage(String.format("[전체] %s: %s", stateManager.getCurrentUserId(), content), Color.YELLOW);
+        } else {
+            msg = new Message(Message.MessageType.CHAT_ROOM, stateManager.getCurrentUserId(), message);
+            roomWaitingPanel.addChatMessage(String.format("%s: %s", stateManager.getCurrentUserId(), message), Color.WHITE);
+        }
         networkManager.sendMessage(msg);
     }
 
