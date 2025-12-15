@@ -28,4 +28,10 @@ public interface RoomWaitingListener {
      * Called when user (room master) wants to edit room settings
      */
     void onEditRoomRequested();
+
+    /**
+     * Called when a chat message is sent from the room
+     * @param message The chat message
+     */
+    void onRoomChatSent(String message);
 }

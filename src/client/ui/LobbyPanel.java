@@ -163,11 +163,16 @@ public class LobbyPanel extends JPanel {
         // User list
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
+        userList.setCellRenderer(new UserListCellRenderer()); // Set custom renderer
         userList.setFont(new Font("Arial", Font.PLAIN, 12));
         userList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
         userList.setVisibleRowCount(1);
+        userList.setOpaque(false); // Make list transparent
+        userList.setBackground(new Color(0,0,0,0)); // Transparent background
 
         JScrollPane userScrollPane = new JScrollPane(userList);
+        userScrollPane.setOpaque(false); // Make scroll pane transparent
+        userScrollPane.getViewport().setOpaque(false); // Make viewport transparent
         userScrollPane.setPreferredSize(new Dimension(760, 40));
         userScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         userScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
