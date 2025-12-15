@@ -223,6 +223,11 @@ public class ClientHandler implements Runnable {
             response.setType(Message.MessageType.CREATE_ROOM_RESPONSE);
             response.setSuccess(true);
             sendMessage(response);
+
+            // 갱신된 방 정보를 클라이언트에게 다시 전송하여 목록 업데이트 강제
+            Message updateMsg = room.createRoomUpdateMessage(null);
+            sendMessage(updateMsg);
+
             serverCore.broadcastUserList(); // 상태 변경 브로드캐스트
         } else {
             sendMessage(Message.createErrorMessage(Message.ErrorCode.SERVER_FULL,
@@ -267,6 +272,10 @@ public class ClientHandler implements Runnable {
         response.setType(Message.MessageType.JOIN_ROOM_RESPONSE);
         response.setSuccess(true);
         sendMessage(response);
+
+        Message updateMsg = room.createRoomUpdateMessage(null);
+        sendMessage(updateMsg);
+
         serverCore.broadcastUserList();
     }
 
