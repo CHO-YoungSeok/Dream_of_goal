@@ -19,9 +19,9 @@ public class UserListCellRenderer extends DefaultListCellRenderer {
         if (userText.startsWith("\u2B24")) { // Online (in lobby)
             setForeground(Color.GREEN);
         } else if (userText.startsWith("\u25FC")) { // In Room
-            setForeground(Color.BLUE);
+            setForeground(Color.WHITE);
         } else if (userText.startsWith("\u25B2")) { // In Game
-            setForeground(Color.RED);
+            setForeground(Color.magenta);
         } else {
             setForeground(list.getForeground());
         }

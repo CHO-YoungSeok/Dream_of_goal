@@ -2,6 +2,7 @@ package client.ui;
 
 import common.Message;
 import client.util.UIHelper;
+import client.state.GameStateManager;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.text.BadLocationException;
@@ -29,6 +30,9 @@ public class LobbyPanel extends JPanel {
     private JList<String> userList;
     private DefaultListModel<String> userListModel;
 
+    // User ID label
+    private JLabel userIdLabel;
+
     public LobbyPanel(LobbyListener listener) {
         this.listener = listener;
         buildUI();
@@ -49,12 +53,23 @@ public class LobbyPanel extends JPanel {
         roomListSection.setOpaque(false);
         roomListSection.setPreferredSize(new Dimension(800, 360)); // 60% of assumed 600px height
 
-        // Title
+        // Title container with user ID
+        JPanel titleContainer = new JPanel(new BorderLayout());
+        titleContainer.setOpaque(false);
+        titleContainer.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+
         JLabel titleLabel = new JLabel("Lobby", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
         titleLabel.setForeground(Color.YELLOW);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
-        roomListSection.add(titleLabel, BorderLayout.NORTH);
+        titleContainer.add(titleLabel, BorderLayout.CENTER);
+
+        // User ID display
+        userIdLabel = new JLabel("User: " + GameStateManager.getInstance().getCurrentUserId());
+        userIdLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        userIdLabel.setForeground(new Color(0, 180, 0)); // Green
+        titleContainer.add(userIdLabel, BorderLayout.EAST);
+
+        roomListSection.add(titleContainer, BorderLayout.NORTH);
 
         // Room list table
         JPanel roomListPanel = new JPanel(new BorderLayout());
@@ -169,7 +184,7 @@ public class LobbyPanel extends JPanel {
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
         userList.setCellRenderer(new UserListCellRenderer()); // Set custom renderer
-        userList.setFont(new Font("Arial", Font.PLAIN, 12));
+        userList.setFont(new Font("Arial", Font.PLAIN, 13));
         userList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
         userList.setVisibleRowCount(4);
         userList.setOpaque(false); // Make list transparent
@@ -535,5 +550,13 @@ public class LobbyPanel extends JPanel {
         dialog.setSize(480, 700);
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
+    }
+
+    /**
+     * Update user ID display
+     */
+    public void updateUserInfo() {
+        String userId = GameStateManager.getInstance().getCurrentUserId();
+        userIdLabel.setText("User: " + (userId != null ? userId : "null"));
     }
 }

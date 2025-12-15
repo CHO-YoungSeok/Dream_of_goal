@@ -795,6 +795,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     private void switchToLobbyScreen() {
         currentState = UIState.LOBBY_SCREEN;
         SwingUtilities.invokeLater(() -> {
+            lobbyPanel.updateUserInfo();
             cardLayout.show(mainPanel, LOBBY_PANEL);
             onRefreshRequested();
 

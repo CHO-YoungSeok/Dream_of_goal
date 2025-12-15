@@ -26,6 +26,9 @@ public class GamePanel extends JPanel {
     private GamePanelListener listener;
     private GameStateManager stateManager;
 
+    // User ID label
+    private JLabel userIdLabel;
+
     public GamePanel(GamePanelListener listener, GameStateManager stateManager) {
         this.listener = listener;
         this.stateManager = stateManager;
@@ -49,10 +52,10 @@ public class GamePanel extends JPanel {
         gameInfoPanel.setOpaque(false);
         l_roundInfo = new JLabel("1회 초");
         l_roundInfo.setFont(new Font("Arial", Font.BOLD, 18));
-        l_roundInfo.setForeground(Color.WHITE);
+        l_roundInfo.setForeground(Color.BLACK);
         l_turnInfo = new JLabel("Your turn");
         l_turnInfo.setFont(new Font("Arial", Font.BOLD, 18));
-        l_turnInfo.setForeground(Color.YELLOW);
+        l_turnInfo.setForeground(Color.GREEN);
         l_timerDisplay = new JLabel("30s");
         l_timerDisplay.setFont(new Font("Arial", Font.BOLD, 18));
         l_timerDisplay.setForeground(Color.RED);
@@ -60,6 +63,12 @@ public class GamePanel extends JPanel {
         gameInfoPanel.add(l_turnInfo);
         gameInfoPanel.add(l_timerDisplay);
         topPanel.add(gameInfoPanel, BorderLayout.CENTER);
+
+        // User ID display
+        userIdLabel = new JLabel("User: " + stateManager.getCurrentUserId());
+        userIdLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        userIdLabel.setForeground(new Color(0, 180, 0)); // Green
+        topPanel.add(userIdLabel, BorderLayout.EAST);
 
         add(topPanel, BorderLayout.NORTH);
 
@@ -137,8 +146,8 @@ public class GamePanel extends JPanel {
         // Spacer (85~85%)
         JPanel spacer3 = new JPanel();
         spacer3.setOpaque(false);
-        spacer3.setPreferredSize(new Dimension(600, 10));
-        spacer3.setMaximumSize(new Dimension(Integer.MAX_VALUE, 10));
+        spacer3.setPreferredSize(new Dimension(600, 150));
+        spacer3.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
         displayPanel.add(spacer3);
 
         // Chat display (85~100%)
@@ -151,8 +160,8 @@ public class GamePanel extends JPanel {
         scrollPane.setOpaque(false);
         scrollPane.getViewport().setOpaque(false);
         scrollPane.setBorder(null);
-        scrollPane.setPreferredSize(new Dimension(600, 60));
-        scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
+        scrollPane.setPreferredSize(new Dimension(600, 150));
+        scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
         displayPanel.add(scrollPane);
 
         return displayPanel;
@@ -242,6 +251,10 @@ public class GamePanel extends JPanel {
      * @param isMyTurn Whether it's current user's turn
      */
     public void updateTurnInfo(String roundInfo, String turnInfo, boolean isMyTurn) {
+        // Update user ID
+        String userId = stateManager.getCurrentUserId();
+        userIdLabel.setText("User: " + (userId != null ? userId : "null"));
+
         l_roundInfo.setText(roundInfo);
         l_turnInfo.setText(turnInfo);
         l_turnInfo.setForeground(isMyTurn ? new Color(0, 128, 0) : new Color(50, 50, 50)); // Dark green if my turn, dark gray otherwise

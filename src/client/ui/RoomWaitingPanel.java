@@ -24,6 +24,9 @@ public class RoomWaitingPanel extends JPanel {
     private JTextField t_chatInput;
     private JButton b_sendChat;
 
+    // User ID label
+    private JLabel userIdLabel;
+
     public RoomWaitingPanel(RoomWaitingListener listener, GameStateManager stateManager) {
         this.listener = listener;
         this.stateManager = stateManager;
@@ -39,12 +42,22 @@ public class RoomWaitingPanel extends JPanel {
         topPanel.setOpaque(false);
         topPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 10, 20));
 
-        // Room title
+        // Room title row with user ID
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setOpaque(false);
+
         l_roomTitle = new JLabel("", SwingConstants.CENTER);
         l_roomTitle.setFont(new Font("Arial", Font.BOLD, 24));
         l_roomTitle.setForeground(Color.YELLOW);
-        l_roomTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-        topPanel.add(l_roomTitle);
+        titleRow.add(l_roomTitle, BorderLayout.CENTER);
+
+        // User ID display
+        userIdLabel = new JLabel("User: " + stateManager.getCurrentUserId());
+        userIdLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        userIdLabel.setForeground(new Color(0, 180, 0)); // Green
+        titleRow.add(userIdLabel, BorderLayout.EAST);
+
+        topPanel.add(titleRow);
 
         topPanel.add(Box.createRigidArea(new Dimension(0, 10)));
 
@@ -70,7 +83,7 @@ public class RoomWaitingPanel extends JPanel {
 
         JLabel l_players = new JLabel("플레이어 목록");
         l_players.setFont(new Font("Arial", Font.BOLD, 18));
-        l_players.setForeground(Color.WHITE);
+        l_players.setForeground(Color.DARK_GRAY);
         centerPanel.add(l_players, BorderLayout.NORTH);
 
         // Player list
@@ -231,6 +244,10 @@ public class RoomWaitingPanel extends JPanel {
      * Update room information display
      */
     public void updateRoomInfo() {
+        // Update user ID
+        String userId = stateManager.getCurrentUserId();
+        userIdLabel.setText("User: " + (userId != null ? userId : "null"));
+
         // Room title (with lock icon if private)
         String titleText = stateManager.getCurrentRoomName();
         if (stateManager.isCurrentRoomIsPrivate()) {
