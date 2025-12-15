@@ -431,4 +431,13 @@ public class GameRoom {
             player.sendMessage(msg);
         }
     }
+
+    // 특정 플레이어 제외하고 방 전체 브로드캐스트
+    public void broadcastToRoomExcept(Message msg, ClientHandler except) {
+        for (ClientHandler player : players) {
+            if (player != except) {
+                player.sendMessage(msg);
+            }
+        }
+    }
 }

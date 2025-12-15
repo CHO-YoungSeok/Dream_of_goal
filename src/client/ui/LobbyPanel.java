@@ -171,7 +171,7 @@ public class LobbyPanel extends JPanel {
         userList.setCellRenderer(new UserListCellRenderer()); // Set custom renderer
         userList.setFont(new Font("Arial", Font.PLAIN, 12));
         userList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
-        userList.setVisibleRowCount(1);
+        userList.setVisibleRowCount(4);
         userList.setOpaque(false); // Make list transparent
         userList.setBackground(new Color(0,0,0,0)); // Transparent background
 
