@@ -13,20 +13,16 @@ public class ClientHandler implements Runnable {
     private ObjectInputStream in;
     private ObjectOutputStream out;
 
+    // 클라이언트 세션 정보
     String userId;
     GameRoom currentRoom;
     Message.UserStatus userStatus = Message.UserStatus.ONLINE;
 
     private ServerCore serverCore;
-    private AuthManager authManager;
-    private RoomManager roomManager;
 
-    public ClientHandler(Socket socket, ServerCore serverCore,
-                         AuthManager authManager, RoomManager roomManager) {
+    public ClientHandler(Socket socket, ServerCore serverCore) {
         this.socket = socket;
         this.serverCore = serverCore;
-        this.authManager = authManager;
-        this.roomManager = roomManager;
 
         try {
             out = new ObjectOutputStream(socket.getOutputStream());
@@ -68,22 +64,26 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /**
-     * 메시지 처리
-     */
+    // 메시지 처리
     private void handleMessage(Message msg) {
         switch (msg.getType()) {
+            // 인증 및 기본 관리
             case LOGIN_REQUEST:
                 handleLogin(msg);
                 break;
             case REGISTER_REQUEST:
                 handleRegister(msg);
                 break;
-            case ROOM_LIST_REQUEST:
-                handleRoomListRequest();
+            case LOGOUT:
+                close();
                 break;
             case USER_LIST_REQUEST:
-                serverCore.broadcastUserList();
+                serverCore.broadcastUserList(); // 접속자 목록 요청 시 전체 브로드캐스트
+                break;
+
+            // 방 목록 및 생성/입장/퇴장/수정
+            case ROOM_LIST_REQUEST:
+                handleRoomListRequest();
                 break;
             case CREATE_ROOM_REQUEST:
                 handleCreateRoom(msg);
@@ -97,6 +97,8 @@ public class ClientHandler implements Runnable {
             case LEAVE_ROOM:
                 handleLeaveRoom();
                 break;
+
+            // 게임 준비 및 시작
             case READY:
                 handleReady(true);
                 break;
@@ -109,9 +111,13 @@ public class ClientHandler implements Runnable {
             case KICK_PLAYER:
                 handleKickPlayer(msg);
                 break;
+
+            // 게임 진행
             case GUESS:
-                handleGuess(msg);
+                handleGuess(msg); // 숫자 추측 요청
                 break;
+
+            // 채팅
             case CHAT_ROOM:
                 handleRoomChat(msg);
                 break;
@@ -124,22 +130,21 @@ public class ClientHandler implements Runnable {
             case CHAT_WHISPER:
                 handleWhisper(msg);
                 break;
+
+            // 전적 /기록
             case STATS_REQUEST:
                 handleStatsRequest(msg);
                 break;
             case GAME_HISTORY_REQUEST:
                 handleGameHistoryRequest(msg);
                 break;
-            case LOGOUT:
-                close();
-                break;
             default:
                 serverCore.printDisplay(userId + "로부터 알 수 없는 메시지: " + msg.getType());
         }
     }
 
-    // ========== 인증 관련 ==========
-
+    // --- 인증 관련 ---
+    // 로그인 처리
     private void handleLogin(Message msg) {
         String userId = msg.getUserId();
         String password = msg.getPassword();
@@ -149,7 +154,7 @@ public class ClientHandler implements Runnable {
             return;
         }
 
-        if (authManager.authenticateUser(userId, password)) {
+        if (serverCore.getAuthManager().authenticateUser(userId, password)) {
             this.userId = userId;
             serverCore.addClient(this);
 
@@ -164,12 +169,13 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // 회원가입 처리
     private void handleRegister(Message msg) {
         String userId = msg.getUserId();
         String password = msg.getPassword();
         String character = msg.getCharacter();
 
-        if (authManager.registerUser(userId, password, character)) {
+        if (serverCore.getAuthManager().registerUser(userId, password, character)) {
             Message response = new Message(Message.MessageType.REGISTER_RESPONSE, userId);
             response.setSuccess(true);
             response.setContent("회원가입 성공");
@@ -180,19 +186,20 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // ========== 방 관련 ==========
-
+    // --- 방 관련 ---
+    // 방 목록 요청 처리
     private void handleRoomListRequest() {
-        Vector<Message> roomList = roomManager.getRoomList();
+        Vector<Message> roomList = serverCore.getRoomManager().getRoomList();
         Message response = new Message(Message.MessageType.ROOM_LIST_RESPONSE, "SERVER");
         response.setData(roomList);
         sendMessage(response);
     }
 
+    // 방 생성 처리
     private void handleCreateRoom(Message msg) {
         if (currentRoom != null) return;
 
-        GameRoom room = roomManager.createRoom(
+        GameRoom room = serverCore.getRoomManager().createRoom(
                 msg.getRoomName(),
                 userId,
                 msg.getGameMode(),
@@ -204,23 +211,24 @@ public class ClientHandler implements Runnable {
 
         if (room != null) {
             currentRoom = room;
-            room.addPlayer(this);
+            room.addPlayer(this); // 방에 플레이어 등록
             userStatus = Message.UserStatus.IN_ROOM;
 
             Message response = room.createRoomUpdateMessage("방 생성 성공");
             response.setType(Message.MessageType.CREATE_ROOM_RESPONSE);
             response.setSuccess(true);
             sendMessage(response);
-            serverCore.broadcastUserList();
+            serverCore.broadcastUserList(); // 상태 변경 브로드캐스트
         } else {
             sendMessage(Message.createErrorMessage(Message.ErrorCode.SERVER_FULL,
-                    "방 생성 실패 (최대 " + roomManager.getMaxRooms() + "개)"));
+                    "방 생성 실패 (최대 " + serverCore.getRoomManager().getMaxRooms() + "개)"));
         }
     }
 
+    // 방 입장 처리
     private void handleJoinRoom(Message msg) {
         int roomId = msg.getRoomId();
-        GameRoom room = roomManager.findRoom(roomId);
+        GameRoom room = serverCore.getRoomManager().findRoom(roomId);
 
         if (room == null) {
             sendMessage(Message.createErrorMessage(Message.ErrorCode.ROOM_NOT_FOUND));
@@ -257,6 +265,7 @@ public class ClientHandler implements Runnable {
         serverCore.broadcastUserList();
     }
 
+    // 방 정보 수정 처리
     private void handleEditRoom(Message msg) {
         if (currentRoom == null) {
             sendMessage(Message.createErrorMessage(Message.ErrorCode.ROOM_NOT_FOUND,
@@ -277,7 +286,7 @@ public class ClientHandler implements Runnable {
         }
 
         GameRoom oldRoom = currentRoom;
-        GameRoom newRoom = roomManager.editRoom(
+        GameRoom newRoom = serverCore.getRoomManager().editRoom(
                 oldRoom,
                 msg.getRoomName(),
                 msg.getDifficulty(),
@@ -298,6 +307,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // 방 퇴장 처리
     private void handleLeaveRoom() {
         if (currentRoom != null) {
             currentRoom.removePlayer(this);
@@ -309,14 +319,15 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // ========== 게임 관련 ==========
-
+    // --- 게임 관련 ---
+    // 준비/준비 취소 처리
     private void handleReady(boolean ready) {
         if (currentRoom != null && !currentRoom.isGameRunning) {
             currentRoom.setReady(userId, ready);
         }
     }
 
+    // 게임 시작 요청 처리
     private void handleStartGameRequest() {
         if (currentRoom == null) return;
 
@@ -335,6 +346,7 @@ public class ClientHandler implements Runnable {
         currentRoom.startGame();
     }
 
+    // 강제 퇴장 처리
     private void handleKickPlayer(Message msg) {
         if (currentRoom == null || !userId.equals(currentRoom.roomMaster)) {
             sendMessage(Message.createErrorMessage(Message.ErrorCode.NOT_ROOM_MASTER));
@@ -365,6 +377,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // 추측 처리
     private void handleGuess(Message msg) {
         if (currentRoom != null && currentRoom.isGameRunning) {
             currentRoom.handleGuess(this, msg.getGuess());
@@ -374,8 +387,8 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // ========== 채팅 관련 ==========
-
+    // --- 채팅 관련 ---
+    // 방 채팅
     private void handleRoomChat(Message msg) {
         if (currentRoom != null) {
             Message chatMsg = Message.createChatMessage(
@@ -384,6 +397,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // 팀 채팅
     private void handleTeamChat(Message msg) {
         if (currentRoom != null && currentRoom.gameMode == Message.GameMode.TWO_VS_TWO) {
             int myTeam = currentRoom.playerTeams.getOrDefault(userId, 0);
@@ -400,12 +414,14 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // 전체 채팅
     private void handleAllChat(Message msg) {
         Message chatMsg = Message.createChatMessage(
                 Message.MessageType.CHAT_ALL, userId, msg.getContent(), null);
         serverCore.broadcastChatAll(chatMsg);
     }
 
+    // 귓속말
     private void handleWhisper(Message msg) {
         String targetUserId = msg.getTargetUserId();
         if (targetUserId == null || targetUserId.isEmpty()) {
@@ -431,20 +447,21 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // ========== 전적/기록 관련 ==========
-
+    // --- 전적/기록 관련 ---
+    // 전적 조회 요청
     private void handleStatsRequest(Message msg) {
         String targetUserId = msg.getContent();
         if (targetUserId == null || targetUserId.isEmpty()) {
             targetUserId = userId;
         }
 
-        Message response = authManager.getStats(targetUserId);
+        Message response = serverCore.getAuthManager().getStats(targetUserId);
         if (response != null) {
             sendMessage(response);
         }
     }
 
+    // 게임 기록 조회 요청
     private void handleGameHistoryRequest(Message msg) {
         try {
             Vector<Hashtable<String, String>> historyList = new Vector<>();
@@ -481,8 +498,8 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // ========== 유틸리티 ==========
-
+    // --- 유틸리티 ---
+    // 메시지 전송
     public void sendMessage(Message msg) {
         try {
             out.writeObject(msg);
@@ -492,6 +509,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // 연결 종료
     public void close() {
         try {
             // 게임 중 접속 끊김 처리
@@ -512,11 +530,13 @@ public class ClientHandler implements Runnable {
                 }
             }
 
+            // 방에서 제거
             if (currentRoom != null) {
                 currentRoom.removePlayer(this);
                 currentRoom = null;
             }
 
+            // 서버 리스트에서 제거 및 로그 출력
             if (userId != null) {
                 serverCore.removeClient(this);
                 serverCore.printDisplay(userId + " 연결 종료");

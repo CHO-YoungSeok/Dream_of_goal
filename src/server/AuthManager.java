@@ -16,9 +16,7 @@ public class AuthManager {
         this.serverCore = serverCore;
     }
 
-    /**
-     * 회원가입
-     */
+    // 회원 가입
     public boolean registerUser(String userId, String password, String character) {
         if (isUserExists(userId)) {
             return false;
@@ -39,9 +37,7 @@ public class AuthManager {
         }
     }
 
-    /**
-     * ID 중복 확인
-     */
+    // 중복 확인
     public boolean isUserExists(String userId) {
         File file = new File(USERS_FILE);
         if (!file.exists()) {
@@ -49,7 +45,7 @@ public class AuthManager {
         }
 
         try (BufferedReader br = new BufferedReader(new FileReader(USERS_FILE))) {
-            br.readLine(); // 헤더 스킵
+            br.readLine();
             String line;
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split(",");
@@ -63,9 +59,7 @@ public class AuthManager {
         return false;
     }
 
-    /**
-     * 로그인 인증
-     */
+    // 로그인 인증
     public boolean authenticateUser(String userId, String password) {
         File file = new File(USERS_FILE);
         if (!file.exists()) {
@@ -73,7 +67,7 @@ public class AuthManager {
         }
 
         try (BufferedReader br = new BufferedReader(new FileReader(USERS_FILE))) {
-            br.readLine(); // 헤더 스킵
+            br.readLine();
             String line;
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split(",");
@@ -89,9 +83,7 @@ public class AuthManager {
         return false;
     }
 
-    /**
-     * 전적 업데이트
-     */
+    // 전적 업데이트
     public synchronized void updateUserStats(String userId, boolean isWin, boolean isDraw) {
         try {
             Vector<String> lines = new Vector<>();
@@ -133,12 +125,15 @@ public class AuthManager {
                     int wins = isWin ? 1 : 0;
                     int losses = (!isWin && !isDraw) ? 1 : 0;
                     int draws = isDraw ? 1 : 0;
-                    double winRate = wins * 100.0;
+                    int totalGames = wins + losses + draws;
+                    double winRate = totalGames > 0 ? (wins * 100.0 / totalGames) : 0.0;
+
                     lines.add(userId + "," + wins + "," + losses + "," + draws + "," +
                             String.format("%.1f", winRate));
                 }
             }
 
+            // 파일 전체 덮어쓰기
             try (FileWriter fw = new FileWriter(STATS_FILE)) {
                 for (String l : lines) {
                     fw.write(l + "\n");
@@ -147,15 +142,15 @@ public class AuthManager {
 
         } catch (IOException e) {
             serverCore.printDisplay("전적 업데이트 실패 (" + userId + "): " + e.getMessage());
+        } catch (NumberFormatException e) {
+            serverCore.printDisplay("전적 파일 데이터 오류 (정수 변환 실패): " + e.getMessage());
         }
     }
 
-    /**
-     * 전적 조회
-     */
+    // 전적 조회
     public Message getStats(String userId) {
         try (BufferedReader br = new BufferedReader(new FileReader(STATS_FILE))) {
-            br.readLine(); // 헤더 스킵
+            br.readLine();
             String line;
 
             while ((line = br.readLine()) != null) {

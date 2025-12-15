@@ -16,9 +16,7 @@ public class RoomManager {
         this.serverCore = serverCore;
     }
 
-    /**
-     * 방 생성
-     */
+    // 방 생성
     public GameRoom createRoom(String roomName, String masterUserId,
                                Message.GameMode gameMode, Message.Difficulty difficulty,
                                Message.TurnTimeLimit turnTimeLimit,
@@ -28,7 +26,9 @@ public class RoomManager {
             return null;
         }
 
-        GameRoom room = new GameRoom(nextRoomId++, roomName, masterUserId,
+        int assignedRoomId = nextRoomId++;
+
+        GameRoom room = new GameRoom(assignedRoomId, roomName, masterUserId,
                 gameMode, difficulty, turnTimeLimit,
                 isPrivate, roomPassword, serverCore);
         rooms.add(room);
@@ -36,9 +36,7 @@ public class RoomManager {
         return room;
     }
 
-    /**
-     * 방 찾기
-     */
+    // 방 찾기
     public GameRoom findRoom(int roomId) {
         for (GameRoom room : rooms) {
             if (room.roomId == roomId) {
@@ -48,17 +46,13 @@ public class RoomManager {
         return null;
     }
 
-    /**
-     * 방 삭제
-     */
+    // 방 삭제
     public void removeRoom(GameRoom room) {
         rooms.remove(room);
         serverCore.printDisplay("방 삭제: [" + room.roomId + "]");
     }
 
-    /**
-     * 방 정보 변경
-     */
+    // 방 정보 변경
     public GameRoom editRoom(GameRoom oldRoom, String roomName,
                              Message.Difficulty difficulty,
                              Message.TurnTimeLimit turnTimeLimit,
@@ -68,21 +62,25 @@ public class RoomManager {
             return null;
         }
 
+        // --- 1. 상태 및 기존 방 제거 ---
         // 기존 플레이어 정보 저장
         Vector<ClientHandler> oldPlayers = new Vector<>(oldRoom.players);
         String roomMaster = oldRoom.roomMaster;
         Message.GameMode gameMode = oldRoom.gameMode;
+        final int retainedRoomId = oldRoom.roomId;
 
         // 기존 방 삭제
         removeRoom(oldRoom);
 
+        // --- 2. 새 방 생성 및 리스트 추가 ---
         // 새 방 생성
-        GameRoom newRoom = new GameRoom(nextRoomId++, roomName, roomMaster,
+        GameRoom newRoom = new GameRoom(retainedRoomId, roomName, roomMaster,
                 gameMode, difficulty, turnTimeLimit,
                 isPrivate, roomPassword, serverCore);
         rooms.add(newRoom);
         serverCore.printDisplay("방 정보 변경: [" + newRoom.roomId + "] " + roomName);
 
+        // --- 3. 플레이어 이동 및 상태 갱신 ---
         // 플레이어 이동
         for (ClientHandler player : oldPlayers) {
             player.currentRoom = newRoom;
@@ -104,9 +102,7 @@ public class RoomManager {
         return newRoom;
     }
 
-    /**
-     * 방 목록 조회
-     */
+    // 방 목록 조회
     public Vector<Message> getRoomList() {
         Vector<Message> roomList = new Vector<>();
 
@@ -130,16 +126,12 @@ public class RoomManager {
         return roomList;
     }
 
-    /**
-     * 전체 방 개수
-     */
+    // 전체 방 개수
     public int getRoomCount() {
         return rooms.size();
     }
 
-    /**
-     * 최대 방 개수
-     */
+    // 최대 방 개수
     public int getMaxRooms() {
         return maxRooms;
     }

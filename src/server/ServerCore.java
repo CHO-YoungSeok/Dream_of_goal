@@ -19,7 +19,7 @@ public class ServerCore {
 
     // 클라이언트 관리
     private final Vector<ClientHandler> clientHandlers = new Vector<>();
-    private final int maxClients = 10;
+    private final int maxClients = 100;
 
     // GUI 콜백
     private DisplayCallback displayCallback;
@@ -40,9 +40,7 @@ public class ServerCore {
         initDataFiles();
     }
 
-    /**
-     * 데이터 파일 초기화
-     */
+    // 데이터 파일 초기화
     private void initDataFiles() {
         new File("server_data").mkdirs();
 
@@ -64,9 +62,7 @@ public class ServerCore {
         }
     }
 
-    /**
-     * 서버 시작
-     */
+    // 서버 시작
     public void startServer() {
         acceptThread = new Thread(() -> {
             try {
@@ -88,7 +84,7 @@ public class ServerCore {
 
                     printDisplay("클라이언트 연결: " + socket.getInetAddress());
 
-                    ClientHandler handler = new ClientHandler(socket, this, authManager, roomManager);
+                    ClientHandler handler = new ClientHandler(socket, this);
                     new Thread(handler).start();
                 }
             } catch (IOException e) {
@@ -98,9 +94,7 @@ public class ServerCore {
         acceptThread.start();
     }
 
-    /**
-     * 서버 중지
-     */
+    // 서버 중지
     public void stopServer() {
         try {
             for (ClientHandler client : clientHandlers) {
@@ -118,23 +112,17 @@ public class ServerCore {
         }
     }
 
-    /**
-     * 클라이언트 추가
-     */
+    // 클라이언트 추가
     public synchronized void addClient(ClientHandler client) {
         clientHandlers.add(client);
     }
 
-    /**
-     * 클라이언트 제거
-     */
+    // 클라이언트 제거
     public synchronized void removeClient(ClientHandler client) {
         clientHandlers.remove(client);
     }
 
-    /**
-     * 중복 로그인 체크
-     */
+    // 중복 로그인 체크
     public boolean isAlreadyLoggedIn(String userId) {
         for (ClientHandler client : clientHandlers) {
             if (client.userId != null && client.userId.equals(userId)) {
@@ -144,9 +132,7 @@ public class ServerCore {
         return false;
     }
 
-    /**
-     * 접속자 목록 브로드캐스트
-     */
+    // 접속자 목록 브로드캐스트
     public synchronized void broadcastUserList() {
         java.util.List<String> userIds = new java.util.ArrayList<>();
         java.util.Map<String, Message.UserStatus> statusMap = new java.util.HashMap<>();
@@ -165,6 +151,7 @@ public class ServerCore {
         msg.setUserStatusMap(statusMap);
         msg.setSuccess(true);
 
+        // 메시지 전송
         synchronized (clientHandlers) {
             for (ClientHandler client : clientHandlers) {
                 if (client.userId != null) {
@@ -174,18 +161,14 @@ public class ServerCore {
         }
     }
 
-    /**
-     * 전체 채팅 브로드캐스트
-     */
+    // 전체 채팅 브로드캐스트
     public void broadcastChatAll(Message chatMsg) {
         for (ClientHandler client : clientHandlers) {
             client.sendMessage(chatMsg);
         }
     }
 
-    /**
-     * 게임 로직 메서드들
-     */
+    // 게임 로직 메서드들
     public String generateAnswer(int digitCount) {
         Vector<Integer> numbers = new Vector<>();
         for (int i = 1; i <= 9; i++) {
@@ -236,18 +219,14 @@ public class ServerCore {
         return true;
     }
 
-    /**
-     * 로그 출력
-     */
+    // 로그 출력
     public void printDisplay(String msg) {
         if (displayCallback != null) {
             displayCallback.printDisplay(msg);
         }
     }
 
-    /**
-     * Getter 메서드들
-     */
+    // Getter 메서드들
     public AuthManager getAuthManager() {
         return authManager;
     }

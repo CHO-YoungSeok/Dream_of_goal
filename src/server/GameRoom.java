@@ -48,9 +48,7 @@ public class GameRoom {
         this.serverCore = serverCore;
     }
 
-    /**
-     * 방 업데이트 메시지 생성
-     */
+    // 방 업데이트 메시지 생성
     public Message createRoomUpdateMessage(String content) {
         Message msg = new Message(Message.MessageType.ROOM_INFO_UPDATE, "SERVER", content);
         msg.setRoomId(roomId);
@@ -75,9 +73,7 @@ public class GameRoom {
         return msg;
     }
 
-    /**
-     * 플레이어 추가
-     */
+    // 플레이어 추가
     public boolean addPlayer(ClientHandler player) {
         if (players.size() >= gameMode.getMaxPlayers()) {
             return false;
@@ -85,11 +81,8 @@ public class GameRoom {
 
         players.add(player);
 
-        if (player.userId.equals(roomMaster)) {
-            readyStatus.put(player.userId, true);
-        } else {
-            readyStatus.put(player.userId, false);
-        }
+        // 플레이어 초기에 false로 설정
+        readyStatus.put(player.userId, false);
 
         // 2v2 팀 배정
         if (gameMode == Message.GameMode.TWO_VS_TWO) {
@@ -103,9 +96,7 @@ public class GameRoom {
         return true;
     }
 
-    /**
-     * 플레이어 제거
-     */
+    // 플레이어 제거
     public void removePlayer(ClientHandler player) {
         players.remove(player);
         readyStatus.remove(player.userId);
@@ -127,13 +118,8 @@ public class GameRoom {
         }
     }
 
-    /**
-     * 준비 상태 변경
-     */
+    // 준비 상태 변경
     public void setReady(String userId, boolean ready) {
-        if (userId.equals(roomMaster)) {
-            return;
-        }
 
         readyStatus.put(userId, ready);
         String msg = userId + "님이 " + (ready ? "준비완료" : "준비취소") + " 했습니다.";
@@ -143,18 +129,13 @@ public class GameRoom {
         broadcastToRoom(statusUpdate);
     }
 
-    /**
-     * 게임 시작 가능 체크
-     */
+    // 게임 시작 가능 체크
     public boolean canStartGame() {
         if (players.size() != gameMode.getMaxPlayers()) {
             return false;
         }
 
         for (ClientHandler player : players) {
-            if (player.userId.equals(roomMaster)) {
-                continue;
-            }
             Boolean ready = readyStatus.get(player.userId);
             if (ready == null || !ready) {
                 return false;
@@ -163,9 +144,7 @@ public class GameRoom {
         return true;
     }
 
-    /**
-     * 게임 시작
-     */
+    // 게임 시작
     public void startGame() {
         isGameRunning = true;
         gameId = "G" + System.currentTimeMillis();
@@ -208,9 +187,7 @@ public class GameRoom {
         sendTurnInfo();
     }
 
-    /**
-     * 턴 정보 전송
-     */
+    // 턴 정보 생성
     public void sendTurnInfo() {
         ClientHandler turnPlayer = null;
         if (!players.isEmpty()) {
@@ -226,9 +203,7 @@ public class GameRoom {
         broadcastToRoom(turnMsg);
     }
 
-    /**
-     * 추측 처리
-     */
+    // 추측 처리
     public void handleGuess(ClientHandler player, String guess) {
         if (!isGameRunning) {
             return;
@@ -288,18 +263,14 @@ public class GameRoom {
         nextTurn();
     }
 
-    /**
-     * 현재 턴 플레이어 ID
-     */
+    // 현재 턴 플레이어 ID
     public String getCurrentTurnPlayerId() {
         if (players.isEmpty()) return null;
         int playerIndex = ((currentRound - 1) * 2 + (isTopHalf ? 0 : 1)) % players.size();
         return players.get(playerIndex).userId;
     }
 
-    /**
-     * 상대방 정답 찾기
-     */
+    // 상대방 정답 찾기
     private String getTargetAnswer(ClientHandler currentPlayer) {
         if (gameMode == Message.GameMode.ONE_VS_ONE) {
             for (ClientHandler p : players) {
@@ -319,9 +290,7 @@ public class GameRoom {
         return null;
     }
 
-    /**
-     * 다음 턴
-     */
+    // 다음 턴
     private void nextTurn() {
         if (isTopHalf) {
             isTopHalf = false;
@@ -337,10 +306,8 @@ public class GameRoom {
         }
     }
 
-    /**
-     * 게임 종료
-     */
-    private void endGame(String winnerId, boolean isDraw, int winnerTeam) {
+    // 게임 종료
+    public void endGame(String winnerId, boolean isDraw, int winnerTeam) {
         isGameRunning = false;
 
         Message endMsg = new Message(Message.MessageType.END_GAME, "SERVER");
@@ -351,7 +318,7 @@ public class GameRoom {
             endMsg.setWinnerId(winnerId);
             if (gameMode == Message.GameMode.TWO_VS_TWO) {
                 endMsg.setWinnerTeam(winnerTeam);
-                endMsg.setContent("Team " + winnerTeam + " 승리! (" + winnerId + "님이 맞춤)");
+                endMsg.setContent("Team " + winnerTeam + " 승리! (최초 정답자: " + winnerId + ")");
             } else {
                 endMsg.setContent(winnerId + "님이 승리했습니다!");
             }
@@ -372,19 +339,15 @@ public class GameRoom {
         }
     }
 
-    /**
-     * 게임 기록 저장
-     */
+    // 게임 기록 저장
     private void saveGameHistory(String winnerId, boolean isDraw, int winnerTeam) {
         try {
             String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
                     .format(new java.util.Date());
 
-            StringBuilder participants = new StringBuilder();
-            for (int i = 0; i < players.size(); i++) {
-                if (i > 0) participants.append(",");
-                participants.append(players.get(i).userId);
-            }
+            String participants = players.stream()
+                    .map(p -> p.userId)
+                    .collect(Collectors.joining(","));
 
             String winner;
             if (isDraw) {
@@ -427,9 +390,7 @@ public class GameRoom {
         }
     }
 
-    /**
-     * 게임 상세 기록 저장
-     */
+    // 게임 상세 기록 저장
     private void saveGameDetail(String gameId, int round, String playerId,
                                 String guess, String result) {
         try (FileWriter fw = new FileWriter(ServerCore.getDetailsFile(), true)) {
@@ -439,9 +400,7 @@ public class GameRoom {
         }
     }
 
-    /**
-     * 방 전체 브로드캐스트
-     */
+    // 방 전체 브로드 캐스트
     public void broadcastToRoom(Message msg) {
         for (ClientHandler player : players) {
             player.sendMessage(msg);

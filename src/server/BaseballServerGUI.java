@@ -26,9 +26,6 @@ public class BaseballServerGUI extends JFrame {
         setVisible(true);
     }
 
-    /**
-     * GUI 구성
-     */
     private void buildGUI() {
         // 로그 출력 영역
         t_display = new JTextArea();
@@ -62,9 +59,6 @@ public class BaseballServerGUI extends JFrame {
         add(btnPanel, BorderLayout.SOUTH);
     }
 
-    /**
-     * 로그 출력
-     */
     private void printDisplay(String msg) {
         SwingUtilities.invokeLater(() -> {
             t_display.append(msg + "\n");
@@ -72,9 +66,6 @@ public class BaseballServerGUI extends JFrame {
         });
     }
 
-    /**
-     * 메인 메서드
-     */
     public static void main(String[] args) {
         new BaseballServerGUI(54321);
     }
