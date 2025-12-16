@@ -66,6 +66,9 @@ public class ClientHandler implements Runnable {
 
     // 메시지 처리
     private void handleMessage(Message msg) {
+        // 모든 수신 메시지 로깅
+        logClientMessage(msg);
+
         switch (msg.getType()) {
             // 인증 및 기본 관리
             case LOGIN_REQUEST:
@@ -582,6 +585,157 @@ public class ClientHandler implements Runnable {
             out.flush();
         } catch (IOException e) {
             serverCore.printDisplay("메시지 전송 오류 (" + userId + "): " + e.getMessage());
+        }
+    }
+
+    // --- 로깅 관련 ---
+    private void logClientMessage(Message msg) {
+        try {
+            String userIdStr = (userId != null) ? userId : "미인증";
+            String logMessage = formatLogMessage(msg, userIdStr);
+            serverCore.printDisplay(logMessage);
+        } catch (Exception e) {
+            // 로깅 오류가 메시지 처리를 방해하지 않도록 예외 처리
+            serverCore.printDisplay("[로그오류] " + msg.getType());
+        }
+    }
+
+    private String formatLogMessage(Message msg, String userIdStr) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[").append(msg.getType()).append("] ").append(userIdStr);
+
+        switch (msg.getType()) {
+            case LOGIN_REQUEST:
+                sb.append(" | 로그인 시도");
+                break;
+
+            case REGISTER_REQUEST:
+                sb.append(" | 캐릭터: ").append(msg.getCharacter()).append(" | 회원가입 시도");
+                break;
+
+            case LOGOUT:
+                sb.append(" | 로그아웃");
+                break;
+
+            case CREATE_ROOM_REQUEST:
+                sb.append(" | 방: \"").append(msg.getRoomName()).append("\"");
+                sb.append(" | ").append(msg.getGameMode().getDisplayName());
+                sb.append(" | 난이도: ").append(msg.getDifficulty().getDisplayName());
+                sb.append(" | 시간: ").append(msg.getTurnTimeLimit().getDisplayName());
+                break;
+
+            case JOIN_ROOM_REQUEST:
+                sb.append(" | 방ID: ").append(msg.getRoomId());
+                break;
+
+            case EDIT_ROOM_REQUEST:
+                sb.append(" | 방ID: ").append(msg.getRoomId());
+                sb.append(" | 새이름: \"").append(msg.getRoomName()).append("\"");
+                break;
+
+            case LEAVE_ROOM:
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                break;
+
+            case KICK_PLAYER:
+                sb.append(" | 대상: ").append(msg.getTargetUserId());
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                break;
+
+            case READY:
+                sb.append(" | 준비 완료");
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                break;
+
+            case READY_CANCEL:
+                sb.append(" | 준비 취소");
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                break;
+
+            case START_GAME_REQUEST:
+                sb.append(" | 게임 시작 요청");
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                break;
+
+            case GUESS:
+                sb.append(" | 추측: ").append(msg.getGuess());
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                break;
+
+            case CHAT_ROOM:
+                sb.append(" | 방채팅");
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                appendChatPreview(sb, msg.getContent());
+                break;
+
+            case CHAT_TEAM:
+                sb.append(" | 팀채팅");
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                appendChatPreview(sb, msg.getContent());
+                break;
+
+            case CHAT_ALL:
+                sb.append(" | 전체채팅");
+                appendChatPreview(sb, msg.getContent());
+                break;
+
+            case CHAT_WHISPER:
+                sb.append(" → ").append(msg.getTargetUserId());
+                sb.append(" | 귓속말");
+                appendChatPreview(sb, msg.getContent());
+                break;
+
+            case STATS_REQUEST:
+                String target = msg.getContent();
+                if (target != null && !target.isEmpty()) {
+                    sb.append(" | 조회대상: ").append(target);
+                } else {
+                    sb.append(" | 본인 전적 조회");
+                }
+                break;
+
+            case GAME_HISTORY_REQUEST:
+                sb.append(" | 게임기록 조회");
+                break;
+
+            case USER_LIST_REQUEST:
+                sb.append(" | 접속자 목록 요청");
+                break;
+
+            case ROOM_LIST_REQUEST:
+                sb.append(" | 방 목록 요청");
+                break;
+
+            default:
+                // 기본 메시지는 타입만 로깅
+                break;
+        }
+
+        return sb.toString();
+    }
+
+    private void appendChatPreview(StringBuilder sb, String content) {
+        if (content != null && !content.isEmpty()) {
+            String preview = content.length() > 50
+                ? content.substring(0, 47) + "..."
+                : content;
+            sb.append(" | \"").append(preview).append("\"");
         }
     }
 
