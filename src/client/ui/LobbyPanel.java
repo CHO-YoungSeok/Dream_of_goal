@@ -65,7 +65,7 @@ public class LobbyPanel extends JPanel {
 
         // User ID display
         userIdLabel = new JLabel("User: " + GameStateManager.getInstance().getCurrentUserId());
-        userIdLabel.setFont(new Font("Dialog", Font.BOLD, 14));
+        userIdLabel.setFont(new Font("Dialog", Font.BOLD, 20));
         userIdLabel.setForeground(new Color(30, 100, 30));
         titleContainer.add(userIdLabel, BorderLayout.EAST);
 
