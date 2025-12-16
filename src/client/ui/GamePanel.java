@@ -59,13 +59,13 @@ public class GamePanel extends JPanel {
         JPanel gameInfoPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
         gameInfoPanel.setOpaque(false);
         l_roundInfo = new JLabel("1회 초");
-        l_roundInfo.setFont(new Font("Arial", Font.BOLD, 18));
+        l_roundInfo.setFont(new Font("Dialog", Font.BOLD, 18));
         l_roundInfo.setForeground(Color.BLACK);
         l_turnInfo = new JLabel("Your turn");
-        l_turnInfo.setFont(new Font("Arial", Font.BOLD, 18));
+        l_turnInfo.setFont(new Font("Dialog", Font.BOLD, 18));
         l_turnInfo.setForeground(Color.GREEN);
         l_timerDisplay = new JLabel("30s");
-        l_timerDisplay.setFont(new Font("Arial", Font.BOLD, 18));
+        l_timerDisplay.setFont(new Font("Dialog", Font.BOLD, 18));
         l_timerDisplay.setForeground(Color.RED);
         gameInfoPanel.add(l_roundInfo);
         gameInfoPanel.add(l_turnInfo);
@@ -74,7 +74,7 @@ public class GamePanel extends JPanel {
 
         // User ID display
         userIdLabel = new JLabel("User: " + stateManager.getCurrentUserId());
-        userIdLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        userIdLabel.setFont(new Font("Dialog", Font.BOLD, 20));
         userIdLabel.setForeground(new Color(30, 100, 30));
         topPanel.add(userIdLabel, BorderLayout.EAST);
 
@@ -114,13 +114,13 @@ public class GamePanel extends JPanel {
         numberDisplayPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 5));
 
         b_backSpace = new JButton("Delete");
-        b_backSpace.setFont(new Font("Arial", Font.BOLD, 12));
+        b_backSpace.setFont(new Font("Dialog", Font.BOLD, 12));
         b_backSpace.setPreferredSize(new Dimension(70, 50));
         b_backSpace.addActionListener(e -> backSpaceNumberSelection());
         numberDisplayPanel.add(b_backSpace);
 
         b_submit = new JButton("Submit");
-        b_submit.setFont(new Font("Arial", Font.BOLD, 12));
+        b_submit.setFont(new Font("Dialog", Font.BOLD, 12));
         b_submit.setPreferredSize(new Dimension(80, 60));
         b_submit.addActionListener(e -> submitGuess());
         numberDisplayPanel.add(b_submit);
@@ -145,7 +145,7 @@ public class GamePanel extends JPanel {
         for (int i = 0; i < 10; i++) {
             final int number = i;
             JButton numberButton = new JButton(String.valueOf(i));
-            numberButton.setFont(new Font("Arial", Font.BOLD, 24));
+            numberButton.setFont(new Font("Dialog", Font.BOLD, 24));
             numberButton.addActionListener(e -> onNumberClick(number));
             numberCardPanel.add(numberButton);
         }
@@ -165,7 +165,7 @@ public class GamePanel extends JPanel {
         t_display = new JTextPane();
         t_display.setEditable(false);
         t_display.setOpaque(true);
-        t_display.setFont(new Font("Arial", Font.PLAIN, 15));
+        t_display.setFont(new Font("Dialog", Font.PLAIN, 15));
         t_display.setBorder(null);
         JScrollPane scrollPane = new JScrollPane(t_display);
         scrollPane.setOpaque(false);
@@ -204,7 +204,7 @@ public class GamePanel extends JPanel {
 
         // Title label
         JLabel titleLabel = new JLabel("📊 My Predictions");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        titleLabel.setFont(new Font("Dialog", Font.BOLD, 14));
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
         predictionHistoryPanel.add(titleLabel, BorderLayout.NORTH);
@@ -241,7 +241,7 @@ public class GamePanel extends JPanel {
 
         // Top: Baseball icon + guess
         JLabel guessLabel = new JLabel("⚾ " + entry.getGuess());
-        guessLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        guessLabel.setFont(new Font("Dialog", Font.BOLD, 14));
         guessLabel.setForeground(new Color(33, 33, 33));
         card.add(guessLabel, BorderLayout.NORTH);
 
@@ -251,7 +251,7 @@ public class GamePanel extends JPanel {
 
         // Strike badge
         JLabel strikeLabel = new JLabel(entry.getStrike() + "S");
-        strikeLabel.setFont(new Font("Arial", Font.BOLD, 11));
+        strikeLabel.setFont(new Font("Dialog", Font.BOLD, 11));
         strikeLabel.setForeground(Color.WHITE);
         strikeLabel.setBackground(new Color(46, 125, 50)); // Green
         strikeLabel.setOpaque(true);
@@ -260,7 +260,7 @@ public class GamePanel extends JPanel {
 
         // Ball badge
         JLabel ballLabel = new JLabel(entry.getBall() + "B");
-        ballLabel.setFont(new Font("Arial", Font.BOLD, 11));
+        ballLabel.setFont(new Font("Dialog", Font.BOLD, 11));
         ballLabel.setForeground(new Color(33, 33, 33));
         ballLabel.setBackground(new Color(251, 192, 45)); // Yellow
         ballLabel.setOpaque(true);
@@ -291,7 +291,7 @@ public class GamePanel extends JPanel {
         selectedNumbers = new JLabel[digitCount];
         for (int i = 0; i < digitCount; i++) {
             selectedNumbers[i] = new JLabel("_");
-            selectedNumbers[i].setFont(new Font("Arial", Font.BOLD, 36));
+            selectedNumbers[i].setFont(new Font("Dialog", Font.BOLD, 36));
             selectedNumbers[i].setForeground(Color.WHITE);
             selectedNumbers[i].setBorder(BorderFactory.createLineBorder(Color.WHITE, 2));
             selectedNumbers[i].setPreferredSize(new Dimension(50, 50));

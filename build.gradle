@@ -1,0 +1,109 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.dreamofgoal'
+version = '1.0.0'
+
+sourceCompatibility = '11'
+targetCompatibility = '11'
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    // Common 소스셋 (공통 코드)
+    common {
+        java {
+            srcDir 'src/common'
+        }
+    }
+
+    // Client 소스셋
+    client {
+        java {
+            srcDirs = ['src/client', 'src/common']
+        }
+        resources {
+            srcDir 'src/image'
+        }
+        compileClasspath += sourceSets.common.output
+    }
+
+    // Server 소스셋
+    server {
+        java {
+            srcDirs = ['src/server', 'src/common']
+        }
+        compileClasspath += sourceSets.common.output
+    }
+}
+
+// Client JAR 생성 태스크
+task clientJar(type: Jar) {
+    archiveBaseName = 'baseball-client'
+    archiveVersion = version
+
+    from sourceSets.client.output
+    from sourceSets.common.output
+
+    // 이미지 리소스 포함
+    from('src/image') {
+        into 'image'
+    }
+
+    manifest {
+        attributes(
+            'Main-Class': 'client.BaseballClientGUI',
+            'Implementation-Title': 'Baseball Game Client',
+            'Implementation-Version': version
+        )
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// Server JAR 생성 태스크
+task serverJar(type: Jar) {
+    archiveBaseName = 'baseball-server'
+    archiveVersion = version
+
+    from sourceSets.server.output
+    from sourceSets.common.output
+
+    manifest {
+        attributes(
+            'Main-Class': 'server.BaseballServerGUI',
+            'Implementation-Title': 'Baseball Game Server',
+            'Implementation-Version': version
+        )
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// 모든 JAR 생성
+task buildAll {
+    dependsOn clientJar, serverJar
+
+    doLast {
+        println "========================================"
+        println "Build completed successfully!"
+        println "========================================"
+        println "Client JAR: build/libs/${clientJar.archiveFileName.get()}"
+        println "Server JAR: build/libs/${serverJar.archiveFileName.get()}"
+        println "========================================"
+    }
+}
+
+// 기본 jar 태스크는 buildAll로 대체
+jar {
+    enabled = false
+}
+
+// clean 태스크
+clean {
+    delete 'build'
+    delete 'out'
+}

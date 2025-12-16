@@ -22,7 +22,7 @@ public class ResultPanel extends JPanel {
 
         // 결과 메시지
         l_resultMessage = new JLabel("게임 결과", SwingConstants.CENTER);
-        l_resultMessage.setFont(new Font("Arial", Font.BOLD, 48));
+        l_resultMessage.setFont(new Font("Dialog", Font.BOLD, 48));
         l_resultMessage.setForeground(Color.YELLOW);
         add(l_resultMessage, BorderLayout.CENTER);
 
@@ -31,12 +31,12 @@ public class ResultPanel extends JPanel {
         bottomPanel.setOpaque(false);
 
         b_stayInRoom = new JButton("방에 남기");
-        b_stayInRoom.setFont(new Font("Arial", Font.BOLD, 18));
+        b_stayInRoom.setFont(new Font("Dialog", Font.BOLD, 18));
         b_stayInRoom.setPreferredSize(new Dimension(150, 50));
         b_stayInRoom.addActionListener(e -> listener.onStayInRoom());
 
         b_leaveToLobby = new JButton("로비로 나가기");
-        b_leaveToLobby.setFont(new Font("Arial", Font.BOLD, 18));
+        b_leaveToLobby.setFont(new Font("Dialog", Font.BOLD, 18));
         b_leaveToLobby.setPreferredSize(new Dimension(180, 50));
         b_leaveToLobby.addActionListener(e -> listener.onLeaveToLobby());
 

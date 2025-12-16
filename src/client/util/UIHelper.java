@@ -33,7 +33,7 @@ public class UIHelper {
 
         JLabel label = new JLabel(message);
         label.setForeground(Color.WHITE);
-        label.setFont(new Font("Arial", Font.BOLD, 16));
+        label.setFont(new Font("Dialog", Font.BOLD, 16));
         panel.add(label);
 
         toast.add(panel);

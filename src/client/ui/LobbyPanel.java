@@ -59,13 +59,13 @@ public class LobbyPanel extends JPanel {
         titleContainer.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
 
         JLabel titleLabel = new JLabel("Lobby", SwingConstants.CENTER);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        titleLabel.setFont(new Font("Dialog", Font.BOLD, 28));
         titleLabel.setForeground(Color.YELLOW);
         titleContainer.add(titleLabel, BorderLayout.CENTER);
 
         // User ID display
         userIdLabel = new JLabel("User: " + GameStateManager.getInstance().getCurrentUserId());
-        userIdLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        userIdLabel.setFont(new Font("Dialog", Font.BOLD, 20));
         userIdLabel.setForeground(new Color(30, 100, 30));
         titleContainer.add(userIdLabel, BorderLayout.EAST);
 
@@ -86,7 +86,7 @@ public class LobbyPanel extends JPanel {
         roomListTable = new JTable(roomListTableModel);
         roomListTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         roomListTable.getTableHeader().setReorderingAllowed(false);
-        roomListTable.setFont(new Font("Arial", Font.PLAIN, 14));
+        roomListTable.setFont(new Font("Dialog", Font.PLAIN, 14));
         roomListTable.setRowHeight(25);
 
         JScrollPane roomScrollPane = new JScrollPane(roomListTable);
@@ -101,17 +101,17 @@ public class LobbyPanel extends JPanel {
         buttonPanel.setOpaque(false);
 
         b_createRoom = new JButton("방 생성");
-        b_createRoom.setFont(new Font("Arial", Font.BOLD, 16));
+        b_createRoom.setFont(new Font("Dialog", Font.BOLD, 16));
         b_createRoom.setPreferredSize(new Dimension(120, 40));
         b_createRoom.addActionListener(e -> showCreateRoomDialog());
 
         b_joinRoom = new JButton("방 입장");
-        b_joinRoom.setFont(new Font("Arial", Font.BOLD, 16));
+        b_joinRoom.setFont(new Font("Dialog", Font.BOLD, 16));
         b_joinRoom.setPreferredSize(new Dimension(120, 40));
         b_joinRoom.addActionListener(e -> handleJoinRoom());
 
         b_refreshRoomList = new JButton("새로고침");
-        b_refreshRoomList.setFont(new Font("Arial", Font.BOLD, 16));
+        b_refreshRoomList.setFont(new Font("Dialog", Font.BOLD, 16));
         b_refreshRoomList.setPreferredSize(new Dimension(120, 40));
         b_refreshRoomList.addActionListener(e -> listener.onRefreshRequested());
 
@@ -131,7 +131,7 @@ public class LobbyPanel extends JPanel {
 
         // Chat title
         JLabel chatTitleLabel = new JLabel("로비 채팅", SwingConstants.LEFT);
-        chatTitleLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        chatTitleLabel.setFont(new Font("Dialog", Font.BOLD, 16));
         chatTitleLabel.setForeground(Color.YELLOW);
         chatTitleLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
         chatSection.add(chatTitleLabel, BorderLayout.NORTH);
@@ -139,7 +139,7 @@ public class LobbyPanel extends JPanel {
         // Chat display area
         t_chatDisplay = new JTextPane();
         t_chatDisplay.setEditable(false);
-        t_chatDisplay.setFont(new Font("Arial", Font.PLAIN, 15));
+        t_chatDisplay.setFont(new Font("Dialog", Font.PLAIN, 15));
         t_chatDisplay.setOpaque(true);
         JScrollPane chatScrollPane = new JScrollPane(t_chatDisplay);
         chatScrollPane.setOpaque(false);
@@ -153,11 +153,11 @@ public class LobbyPanel extends JPanel {
         chatInputPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
 
         t_chatInput = new JTextField();
-        t_chatInput.setFont(new Font("Arial", Font.PLAIN, 14));
+        t_chatInput.setFont(new Font("Dialog", Font.PLAIN, 14));
         t_chatInput.addActionListener(e -> sendChatMessage());
 
         b_sendChat = new JButton("전송");
-        b_sendChat.setFont(new Font("Arial", Font.BOLD, 14));
+        b_sendChat.setFont(new Font("Dialog", Font.BOLD, 14));
         b_sendChat.setPreferredSize(new Dimension(80, 30));
         b_sendChat.addActionListener(e -> sendChatMessage());
 
@@ -176,7 +176,7 @@ public class LobbyPanel extends JPanel {
 
         // User list title
         JLabel userListTitleLabel = new JLabel("접속자", SwingConstants.LEFT);
-        userListTitleLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        userListTitleLabel.setFont(new Font("Dialog", Font.BOLD, 14));
         userListTitleLabel.setForeground(Color.YELLOW);
         userListSection.add(userListTitleLabel, BorderLayout.NORTH);
 
@@ -184,7 +184,7 @@ public class LobbyPanel extends JPanel {
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
         userList.setCellRenderer(new UserListCellRenderer()); // Set custom renderer
-        userList.setFont(new Font("Arial", Font.PLAIN, 13));
+        userList.setFont(new Font("Dialog", Font.PLAIN, 13));
         userList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
         userList.setVisibleRowCount(4);
         userList.setOpaque(false); // Make list transparent
@@ -326,7 +326,7 @@ public class LobbyPanel extends JPanel {
 
         // Title
         JLabel titleLabel = new JLabel(isEditMode ? "방 정보 변경" : "방 생성");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        titleLabel.setFont(new Font("Dialog", Font.BOLD, 28));
         titleLabel.setForeground(Color.YELLOW);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
@@ -334,10 +334,10 @@ public class LobbyPanel extends JPanel {
         JPanel roomNamePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         roomNamePanel.setOpaque(false);
         JLabel l_roomName = new JLabel("방 이름:");
-        l_roomName.setFont(new Font("Arial", Font.BOLD, 16));
+        l_roomName.setFont(new Font("Dialog", Font.BOLD, 16));
         l_roomName.setForeground(Color.WHITE);
         JTextField t_roomName = new JTextField(20);
-        t_roomName.setFont(new Font("Arial", Font.PLAIN, 14));
+        t_roomName.setFont(new Font("Dialog", Font.PLAIN, 14));
         if (isEditMode && currentSettings != null) {
             t_roomName.setText(currentSettings.getRoomName());
         }
@@ -348,10 +348,10 @@ public class LobbyPanel extends JPanel {
         JPanel gameModePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         gameModePanel.setOpaque(false);
         JLabel l_gameMode = new JLabel("게임 모드:");
-        l_gameMode.setFont(new Font("Arial", Font.BOLD, 16));
+        l_gameMode.setFont(new Font("Dialog", Font.BOLD, 16));
         l_gameMode.setForeground(Color.WHITE);
         JComboBox<String> cb_gameMode = new JComboBox<>(new String[]{"1v1", "2v2"});
-        cb_gameMode.setFont(new Font("Arial", Font.PLAIN, 14));
+        cb_gameMode.setFont(new Font("Dialog", Font.PLAIN, 14));
         if (isEditMode && currentSettings != null && currentSettings.getGameMode() != null) {
             cb_gameMode.setSelectedIndex(currentSettings.getGameMode() == Message.GameMode.ONE_VS_ONE ? 0 : 1);
         }
@@ -365,10 +365,10 @@ public class LobbyPanel extends JPanel {
         JPanel difficultyPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         difficultyPanel.setOpaque(false);
         JLabel l_difficulty = new JLabel("난이도:");
-        l_difficulty.setFont(new Font("Arial", Font.BOLD, 16));
+        l_difficulty.setFont(new Font("Dialog", Font.BOLD, 16));
         l_difficulty.setForeground(Color.WHITE);
         JComboBox<String> cb_difficulty = new JComboBox<>(new String[]{"하", "중", "상"});
-        cb_difficulty.setFont(new Font("Arial", Font.PLAIN, 14));
+        cb_difficulty.setFont(new Font("Dialog", Font.PLAIN, 14));
         if (isEditMode && currentSettings != null && currentSettings.getDifficulty() != null) {
             cb_difficulty.setSelectedIndex(currentSettings.getDifficulty().ordinal());
         }
@@ -379,10 +379,10 @@ public class LobbyPanel extends JPanel {
         JPanel turnTimeLimitPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         turnTimeLimitPanel.setOpaque(false);
         JLabel l_turnTimeLimit = new JLabel("턴 제한 시간:");
-        l_turnTimeLimit.setFont(new Font("Arial", Font.BOLD, 16));
+        l_turnTimeLimit.setFont(new Font("Dialog", Font.BOLD, 16));
         l_turnTimeLimit.setForeground(Color.WHITE);
         JComboBox<String> cb_turnTimeLimit = new JComboBox<>(new String[]{"15초", "30초", "60초"});
-        cb_turnTimeLimit.setFont(new Font("Arial", Font.PLAIN, 14));
+        cb_turnTimeLimit.setFont(new Font("Dialog", Font.PLAIN, 14));
         if (isEditMode && currentSettings != null && currentSettings.getTurnTimeLimit() != null) {
             int index = currentSettings.getTurnTimeLimit() == Message.TurnTimeLimit.FIFTEEN ? 0 :
                         currentSettings.getTurnTimeLimit() == Message.TurnTimeLimit.THIRTY ? 1 : 2;
@@ -396,11 +396,11 @@ public class LobbyPanel extends JPanel {
         buttonPanel.setOpaque(false);
 
         JButton b_confirm = new JButton(isEditMode ? "변경" : "생성");
-        b_confirm.setFont(new Font("Arial", Font.BOLD, 16));
+        b_confirm.setFont(new Font("Dialog", Font.BOLD, 16));
         b_confirm.setPreferredSize(new Dimension(100, 40));
 
         JButton b_cancel = new JButton("취소");
-        b_cancel.setFont(new Font("Arial", Font.BOLD, 16));
+        b_cancel.setFont(new Font("Dialog", Font.BOLD, 16));
         b_cancel.setPreferredSize(new Dimension(100, 40));
         b_cancel.addActionListener(e -> dialog.dispose());
 

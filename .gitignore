@@ -1,10 +1,12 @@
 ### IntelliJ IDEA ###
 
-server_data
+### server_data
 *.class
 GEMINI.md
 .gemini
 *.bak
+build/
+server_data/
 
 # Created by https://www.toptal.com/developers/gitignore/api/intellij,java,macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij,java,macos
