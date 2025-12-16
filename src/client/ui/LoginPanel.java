@@ -40,7 +40,7 @@ public class LoginPanel extends JPanel {
 
         // Title
         JLabel titleLabel = new JLabel("Baseball Game");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 48));
+        titleLabel.setFont(new Font("Dialog", Font.BOLD, 48));
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         centerPanel.add(titleLabel);
@@ -48,7 +48,7 @@ public class LoginPanel extends JPanel {
 
         // Login Section
         JLabel loginLabel = new JLabel("Login");
-        loginLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        loginLabel.setFont(new Font("Dialog", Font.BOLD, 24));
         loginLabel.setForeground(Color.YELLOW);
         loginLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         centerPanel.add(loginLabel);
@@ -58,10 +58,10 @@ public class LoginPanel extends JPanel {
         JPanel loginUserPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         loginUserPanel.setOpaque(false);
         JLabel l_loginUserId = new JLabel("User ID:");
-        l_loginUserId.setFont(new Font("Arial", Font.BOLD, 18));
+        l_loginUserId.setFont(new Font("Dialog", Font.BOLD, 18));
         l_loginUserId.setForeground(Color.WHITE);
         t_loginUserId = new JTextField(15);
-        t_loginUserId.setFont(new Font("Arial", Font.PLAIN, 16));
+        t_loginUserId.setFont(new Font("Dialog", Font.PLAIN, 16));
         loginUserPanel.add(l_loginUserId);
         loginUserPanel.add(t_loginUserId);
         centerPanel.add(loginUserPanel);
@@ -70,10 +70,10 @@ public class LoginPanel extends JPanel {
         JPanel loginPassPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         loginPassPanel.setOpaque(false);
         JLabel l_loginPassword = new JLabel("Password:");
-        l_loginPassword.setFont(new Font("Arial", Font.BOLD, 18));
+        l_loginPassword.setFont(new Font("Dialog", Font.BOLD, 18));
         l_loginPassword.setForeground(Color.WHITE);
         t_loginPassword = new JPasswordField(15);
-        t_loginPassword.setFont(new Font("Arial", Font.PLAIN, 16));
+        t_loginPassword.setFont(new Font("Dialog", Font.PLAIN, 16));
         loginPassPanel.add(l_loginPassword);
         loginPassPanel.add(t_loginPassword);
         centerPanel.add(loginPassPanel);
@@ -82,7 +82,7 @@ public class LoginPanel extends JPanel {
         JPanel loginButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         loginButtonPanel.setOpaque(false);
         b_login = new JButton("Login");
-        b_login.setFont(new Font("Arial", Font.BOLD, 20));
+        b_login.setFont(new Font("Dialog", Font.BOLD, 20));
         b_login.setPreferredSize(new Dimension(150, 45));
         b_login.addActionListener(e -> handleLogin());
         loginButtonPanel.add(b_login);
@@ -92,7 +92,7 @@ public class LoginPanel extends JPanel {
 
         // Register Section
         JLabel registerLabel = new JLabel("New User? Register");
-        registerLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        registerLabel.setFont(new Font("Dialog", Font.BOLD, 24));
         registerLabel.setForeground(Color.YELLOW);
         registerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         centerPanel.add(registerLabel);
@@ -102,10 +102,10 @@ public class LoginPanel extends JPanel {
         JPanel regUserPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         regUserPanel.setOpaque(false);
         JLabel l_regUserId = new JLabel("User ID:");
-        l_regUserId.setFont(new Font("Arial", Font.BOLD, 18));
+        l_regUserId.setFont(new Font("Dialog", Font.BOLD, 18));
         l_regUserId.setForeground(Color.WHITE);
         t_registerUserId = new JTextField(15);
-        t_registerUserId.setFont(new Font("Arial", Font.PLAIN, 16));
+        t_registerUserId.setFont(new Font("Dialog", Font.PLAIN, 16));
         regUserPanel.add(l_regUserId);
         regUserPanel.add(t_registerUserId);
         centerPanel.add(regUserPanel);
@@ -114,10 +114,10 @@ public class LoginPanel extends JPanel {
         JPanel regPassPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         regPassPanel.setOpaque(false);
         JLabel l_regPassword = new JLabel("Password:");
-        l_regPassword.setFont(new Font("Arial", Font.BOLD, 18));
+        l_regPassword.setFont(new Font("Dialog", Font.BOLD, 18));
         l_regPassword.setForeground(Color.WHITE);
         t_registerPassword = new JPasswordField(15);
-        t_registerPassword.setFont(new Font("Arial", Font.PLAIN, 16));
+        t_registerPassword.setFont(new Font("Dialog", Font.PLAIN, 16));
         regPassPanel.add(l_regPassword);
         regPassPanel.add(t_registerPassword);
         centerPanel.add(regPassPanel);
@@ -126,10 +126,10 @@ public class LoginPanel extends JPanel {
         JPanel regNickPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         regNickPanel.setOpaque(false);
         JLabel l_regNickname = new JLabel("Nickname:");
-        l_regNickname.setFont(new Font("Arial", Font.BOLD, 18));
+        l_regNickname.setFont(new Font("Dialog", Font.BOLD, 18));
         l_regNickname.setForeground(Color.WHITE);
         t_registerNickname = new JTextField(15);
-        t_registerNickname.setFont(new Font("Arial", Font.PLAIN, 16));
+        t_registerNickname.setFont(new Font("Dialog", Font.PLAIN, 16));
         regNickPanel.add(l_regNickname);
         regNickPanel.add(t_registerNickname);
         centerPanel.add(regNickPanel);
@@ -138,7 +138,7 @@ public class LoginPanel extends JPanel {
         JPanel registerButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         registerButtonPanel.setOpaque(false);
         b_register = new JButton("Register");
-        b_register.setFont(new Font("Arial", Font.BOLD, 20));
+        b_register.setFont(new Font("Dialog", Font.BOLD, 20));
         b_register.setPreferredSize(new Dimension(150, 45));
         b_register.addActionListener(e -> handleRegister());
         registerButtonPanel.add(b_register);

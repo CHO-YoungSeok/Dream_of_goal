@@ -47,13 +47,13 @@ public class RoomWaitingPanel extends JPanel {
         titleRow.setOpaque(false);
 
         l_roomTitle = new JLabel("", SwingConstants.CENTER);
-        l_roomTitle.setFont(new Font("Arial", Font.BOLD, 24));
+        l_roomTitle.setFont(new Font("Dialog", Font.BOLD, 24));
         l_roomTitle.setForeground(Color.YELLOW);
         titleRow.add(l_roomTitle, BorderLayout.CENTER);
 
         // User ID display
         userIdLabel = new JLabel("User: " + stateManager.getCurrentUserId());
-        userIdLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        userIdLabel.setFont(new Font("Dialog", Font.BOLD, 14));
         userIdLabel.setForeground(new Color(30, 100, 30)); // Dark Green
         titleRow.add(userIdLabel, BorderLayout.EAST);
 
@@ -63,7 +63,7 @@ public class RoomWaitingPanel extends JPanel {
 
         // Room settings info
         l_roomSettings = new JLabel("", SwingConstants.CENTER);
-        l_roomSettings.setFont(new Font("Arial", Font.PLAIN, 16));
+        l_roomSettings.setFont(new Font("Dialog", Font.PLAIN, 16));
         l_roomSettings.setForeground(Color.WHITE);
         l_roomSettings.setAlignmentX(Component.CENTER_ALIGNMENT);
         topPanel.add(l_roomSettings);
@@ -82,7 +82,7 @@ public class RoomWaitingPanel extends JPanel {
         centerPanel.setPreferredSize(new Dimension(800, 250)); // Give it a preferred size
 
         JLabel l_players = new JLabel("플레이어 목록");
-        l_players.setFont(new Font("Arial", Font.BOLD, 18));
+        l_players.setFont(new Font("Dialog", Font.BOLD, 18));
         l_players.setForeground(Color.DARK_GRAY);
         centerPanel.add(l_players, BorderLayout.NORTH);
 
@@ -90,7 +90,7 @@ public class RoomWaitingPanel extends JPanel {
         roomPlayerListModel = new DefaultListModel<>();
         roomPlayerList = new JList<>(roomPlayerListModel);
         roomPlayerList.setCellRenderer(new PlayerListCellRenderer(stateManager));
-        roomPlayerList.setFont(new Font("Arial", Font.PLAIN, 16));
+        roomPlayerList.setFont(new Font("Dialog", Font.PLAIN, 16));
         roomPlayerList.setOpaque(false);
         roomPlayerList.setBackground(new Color(0, 0, 0, 100));
         roomPlayerList.setForeground(Color.WHITE);
@@ -113,7 +113,7 @@ public class RoomWaitingPanel extends JPanel {
         // Chat display area
         t_chatDisplay = new JTextPane();
         t_chatDisplay.setEditable(false);
-        t_chatDisplay.setFont(new Font("Arial", Font.PLAIN, 15));
+        t_chatDisplay.setFont(new Font("Dialog", Font.PLAIN, 15));
         t_chatDisplay.setOpaque(true);
         JScrollPane chatScrollPane = new JScrollPane(t_chatDisplay);
         chatScrollPane.setOpaque(false);
@@ -127,11 +127,11 @@ public class RoomWaitingPanel extends JPanel {
         chatInputPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
 
         t_chatInput = new JTextField();
-        t_chatInput.setFont(new Font("Arial", Font.PLAIN, 14));
+        t_chatInput.setFont(new Font("Dialog", Font.PLAIN, 14));
         t_chatInput.addActionListener(e -> sendChatMessage());
 
         b_sendChat = new JButton("전송");
-        b_sendChat.setFont(new Font("Arial", Font.BOLD, 14));
+        b_sendChat.setFont(new Font("Dialog", Font.BOLD, 14));
         b_sendChat.setPreferredSize(new Dimension(80, 30));
         b_sendChat.addActionListener(e -> sendChatMessage());
 
@@ -149,27 +149,27 @@ public class RoomWaitingPanel extends JPanel {
 
         // Ready button
         b_ready = new JButton("준비");
-        b_ready.setFont(new Font("Arial", Font.BOLD, 16));
+        b_ready.setFont(new Font("Dialog", Font.BOLD, 16));
         b_ready.addActionListener(e -> handleReady());
         bottomPanel.add(b_ready);
 
         // Cancel ready button
         b_cancelReady = new JButton("준비 취소");
-        b_cancelReady.setFont(new Font("Arial", Font.BOLD, 16));
+        b_cancelReady.setFont(new Font("Dialog", Font.BOLD, 16));
         b_cancelReady.setEnabled(false);
         b_cancelReady.addActionListener(e -> handleCancelReady());
         bottomPanel.add(b_cancelReady);
 
         // Start game button
         b_startGame = new JButton("게임 시작");
-        b_startGame.setFont(new Font("Arial", Font.BOLD, 16));
+        b_startGame.setFont(new Font("Dialog", Font.BOLD, 16));
         b_startGame.setEnabled(false);
         b_startGame.addActionListener(e -> listener.onStartGameRequested());
         bottomPanel.add(b_startGame);
 
         // Edit room button
         JButton b_editRoom = new JButton("방 정보 변경");
-        b_editRoom.setFont(new Font("Arial", Font.BOLD, 16));
+        b_editRoom.setFont(new Font("Dialog", Font.BOLD, 16));
         b_editRoom.addActionListener(e -> {
             if (!stateManager.isRoomMaster()) {
                 JOptionPane.showMessageDialog(this,
@@ -190,7 +190,7 @@ public class RoomWaitingPanel extends JPanel {
         JPanel leavePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         leavePanel.setOpaque(false);
         b_leaveRoom = new JButton("방 나가기");
-        b_leaveRoom.setFont(new Font("Arial", Font.BOLD, 16));
+        b_leaveRoom.setFont(new Font("Dialog", Font.BOLD, 16));
         b_leaveRoom.setPreferredSize(new Dimension(150, 40));
         b_leaveRoom.addActionListener(e -> listener.onLeaveRoomRequested());
         leavePanel.add(b_leaveRoom);
