@@ -4,6 +4,7 @@ server_data
 src/*.class
 GEMINI.md
 .gemini
+.idea
 
 out/
 !**/src/main/**/out/
