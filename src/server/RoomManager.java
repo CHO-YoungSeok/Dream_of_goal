@@ -69,6 +69,9 @@ public class RoomManager {
         Message.GameMode gameMode = oldRoom.gameMode;
         final int retainedRoomId = oldRoom.roomId;
 
+        // 기존 팀 정보 저장
+        java.util.Hashtable<String, Integer> oldPlayerTeams = new java.util.Hashtable<>(oldRoom.playerTeams);
+
         // 기존 방 삭제
         removeRoom(oldRoom);
 
@@ -94,10 +97,16 @@ public class RoomManager {
 
             // 2v2 팀 재배정
             if (gameMode == Message.GameMode.TWO_VS_TWO) {
-                int teamNum = (newRoom.players.size() <= 2) ? 1 : 2;
-                newRoom.playerTeams.put(player.userId, teamNum);
+                Integer teamNum = oldPlayerTeams.get(player.userId);
+                if (teamNum != null) {
+                    // 기존 팀 정보를 새 방에 복사
+                    newRoom.playerTeams.put(player.userId, teamNum);
+
+                }
             }
         }
+        // 팀 리더 정보 업데이트
+        newRoom.updateTeamLeadersFromPlayerTeams();
 
         return newRoom;
     }

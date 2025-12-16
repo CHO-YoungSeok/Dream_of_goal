@@ -247,7 +247,7 @@ public class LobbyPanel extends JPanel {
         }
 
         int roomId = (Integer) roomListTableModel.getValueAt(selectedRow, 0);
-        String roomName = (String) roomListTableModel.getValueAt(selectedRow, 1);
+        //String roomName = (String) roomListTableModel.getValueAt(selectedRow, 1);
         String roomStatus = (String) roomListTableModel.getValueAt(selectedRow, 3);
 
         if ("게임 중".equals(roomStatus)) {

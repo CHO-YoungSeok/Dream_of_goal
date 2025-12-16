@@ -81,7 +81,7 @@ public class ClientHandler implements Runnable {
                 close();
                 break;
             case USER_LIST_REQUEST:
-                serverCore.broadcastUserList(); // 접속자 목록 요청 시 전체 브로드캐스트
+                serverCore.sendUserListToClient(this);
                 break;
 
             // 방 목록 및 생성/입장/퇴장/수정
@@ -118,8 +118,22 @@ public class ClientHandler implements Runnable {
             // 게임 진행
             case GUESS:
                 if (currentRoom != null) {
-                    boolean isAnswerSetupPhase = currentRoom.isGameRunning &&
-                            !currentRoom.playerAnswers.containsKey(userId);
+                    boolean isAnswerSetupPhase = false;
+
+                    if (currentRoom.isGameRunning) {
+                        if (currentRoom.gameMode == Message.GameMode.ONE_VS_ONE) {
+                            // 1v1: 아직 내 정답을 설정하지 않았을 때
+                            isAnswerSetupPhase = !currentRoom.playerAnswers.containsKey(userId);
+                        } else if (currentRoom.gameMode == Message.GameMode.TWO_VS_TWO) {
+                            int playerTeam = currentRoom.playerTeams.getOrDefault(userId, 0);
+                            String leaderId = currentRoom.teamLeaders.get(playerTeam);
+
+                            // 2v2: 아직 우리 팀 정답을 설정하지 않았고, 내가 팀 대표일 때
+                            isAnswerSetupPhase = playerTeam != 0 &&
+                                    !currentRoom.isTeamAnswerSet(playerTeam) &&
+                                    userId.equals(leaderId);
+                        }
+                    }
 
                     if (isAnswerSetupPhase) {
                         handleGameStartAnswer(msg);
@@ -231,9 +245,8 @@ public class ClientHandler implements Runnable {
             response.setSuccess(true);
             sendMessage(response);
 
-            // 갱신된 방 정보를 클라이언트에게 다시 전송하여 목록 업데이트 강제 (클라이언트 목록 누락 문제 대비)
-            Message updateMsg = room.createRoomUpdateMessage(null);
-            sendMessage(updateMsg);
+            //Message updateMsg = room.createRoomUpdateMessage(null);
+            //sendMessage(updateMsg);
 
             serverCore.broadcastUserList(); // 상태 변경 브로드캐스트
         } else {
@@ -433,16 +446,26 @@ public class ClientHandler implements Runnable {
     private void handleTeamChat(Message msg) {
         if (currentRoom != null && currentRoom.gameMode == Message.GameMode.TWO_VS_TWO) {
             int myTeam = currentRoom.playerTeams.getOrDefault(userId, 0);
-            if (myTeam == 0) return;
+            if (myTeam == 0) {
+                // 팀 배정이 안 된 상태라면 에러 메시지 전송
+                sendMessage(Message.createErrorMessage(Message.ErrorCode.UNKNOWN_ERROR,
+                        "팀 채팅은 팀 배정 후 가능합니다."));
+                return;
+            }
 
             Message chatMsg = Message.createChatMessage(
                     Message.MessageType.CHAT_TEAM, userId, msg.getContent(), null);
 
+            // 같은 팀원에게만 메시지 전송
             for (ClientHandler p : currentRoom.players) {
-                if (currentRoom.playerTeams.getOrDefault(p.userId, 0) == myTeam && p != this) {
+                if (currentRoom.playerTeams.getOrDefault(p.userId, 0) == myTeam) {
                     p.sendMessage(chatMsg);
                 }
             }
+        } else {
+            // 1v1 모드에서 팀 채팅 시도 시 알림
+            sendMessage(Message.createErrorMessage(Message.ErrorCode.UNKNOWN_ERROR,
+                    "팀 채팅은 2v2 모드에서만 가능합니다."));
         }
     }
 
@@ -527,15 +550,15 @@ public class ClientHandler implements Runnable {
 
             // 채팅 메시지로 전적 정보 전송
             String statsMessage = String.format(
-                "\n\n[%s님의 전적]\n승: %s | 패: %s | 무: %s | 승률: %s%%",
-                targetUserId, wins, losses, draws, winRate
+                    "[%s님의 전적]\n승: %s | 패: %s | 무: %s | 승률: %s%%",
+                    targetUserId, wins, losses, draws, winRate
             );
 
             Message chatResponse = new Message(responseType, "SERVER", statsMessage);
             sendMessage(chatResponse);
         } else {
             Message errorMsg = new Message(responseType, "SERVER",
-                "전적 정보를 조회할 수 없습니다.");
+                    "전적 정보를 조회할 수 없습니다.");
             sendMessage(errorMsg);
         }
     }
@@ -603,6 +626,11 @@ public class ClientHandler implements Runnable {
     }
 
     private void logServerMessage(Message msg) {
+        if (msg.getType() == Message.MessageType.USER_LIST_RESPONSE ||
+                msg.getType() == Message.MessageType.ROOM_LIST_RESPONSE) {
+            return;
+        }
+
         try {
             String userIdStr = (userId != null) ? userId : "미인증";
             String logMessage = formatServerLogMessage(msg, userIdStr);
@@ -682,9 +710,34 @@ public class ClientHandler implements Runnable {
                 break;
 
             case GUESS:
-                sb.append(" | 추측: ").append(msg.getGuess());
                 if (currentRoom != null) {
-                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+
+                    boolean isAnswerSetupPhase = false;
+
+                    if (currentRoom.isGameRunning) {
+                        if (currentRoom.gameMode == Message.GameMode.ONE_VS_ONE) {
+                            // 1v1: 아직 내 정답을 설정하지 않았을 때
+                            isAnswerSetupPhase = !currentRoom.playerAnswers.containsKey(userId);
+                        } else if (currentRoom.gameMode == Message.GameMode.TWO_VS_TWO) {
+                            int playerTeam = currentRoom.playerTeams.getOrDefault(userId, 0);
+                            String leaderId = currentRoom.teamLeaders.get(playerTeam);
+
+                            // 2v2: 아직 우리 팀 정답을 설정하지 않았고, 내가 팀 대표일 때
+                            isAnswerSetupPhase = playerTeam != 0 &&
+                                    !currentRoom.isTeamAnswerSet(playerTeam) &&
+                                    userId.equals(leaderId);
+                        }
+                    }
+
+                    if (isAnswerSetupPhase) {
+                        sb.append(" | 정답 설정: ").append(msg.getGuess()); // 정답 설정 로깅
+                    } else {
+                        sb.append(" | 추측: ").append(msg.getGuess()); // 일반 추측 로깅
+                    }
+
+                    if (currentRoom != null) {
+                        sb.append(" | 방ID: ").append(currentRoom.roomId);
+                    }
                 }
                 break;
 
@@ -747,8 +800,8 @@ public class ClientHandler implements Runnable {
     private void appendChatPreview(StringBuilder sb, String content) {
         if (content != null && !content.isEmpty()) {
             String preview = content.length() > 50
-                ? content.substring(0, 47) + "..."
-                : content;
+                    ? content.substring(0, 47) + "..."
+                    : content;
             sb.append(" | \"").append(preview).append("\"");
         }
     }
@@ -856,15 +909,6 @@ public class ClientHandler implements Runnable {
                 appendChatPreview(sb, msg.getContent());
                 break;
 
-            case USER_LIST_RESPONSE:
-                sb.append(" | 접속자 목록 업데이트");
-                if (msg.getData() != null) {
-                    @SuppressWarnings("unchecked")
-                    Vector<Hashtable<String, String>> userList = (Vector<Hashtable<String, String>>) msg.getData();
-                    sb.append(" (").append(userList.size()).append("명)");
-                }
-                break;
-
             case ROOM_INFO_UPDATE:
                 sb.append(" | 방 정보 업데이트");
                 if (msg.getRoomId() != 0) {
@@ -932,23 +976,23 @@ public class ClientHandler implements Runnable {
         try {
             // 게임 중 접속 끊김 처리
             if (currentRoom != null && currentRoom.isGameRunning) {
+
+                // 1v1 모드에서만 명시적으로 상대방 승리 처리
+                // 2v2 모드에서는 removePlayer() 호출 시 GameRoom 내부에서 팀 전멸을 체크하고 처리함.
                 if (currentRoom.gameMode == Message.GameMode.ONE_VS_ONE) {
                     for (ClientHandler p : currentRoom.players) {
                         if (!p.userId.equals(userId)) {
+                            // 나가지 않은 상대방이 승리
                             currentRoom.endGame(p.userId, false, 0);
                             break;
                         }
-                    }
-                } else {
-                    int disconnectedTeam = currentRoom.playerTeams.getOrDefault(userId, 0);
-                    if (disconnectedTeam != 0) {
-                        int winnerTeam = (disconnectedTeam == 1) ? 2 : 1;
-                        currentRoom.endGame(null, false, winnerTeam);
                     }
                 }
             }
 
             // 방에서 제거
+            // 2v2 모드에서 이 호출이 GameRoom의 removePlayer()를 실행하고,
+            // 그 안에서 팀 전멸 로직(endGame)이 실행됩니다.
             if (currentRoom != null) {
                 currentRoom.removePlayer(this);
                 currentRoom = null;

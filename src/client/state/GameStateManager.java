@@ -34,6 +34,9 @@ public class GameStateManager {
     private List<String> roomPlayersList = new ArrayList<>();
     private Map<String, Boolean> playerReadyStatus = new HashMap<>();
 
+    // Room players team tracking
+    private Map<String, Integer> playerTeamMap = new HashMap<>();
+
     // ========== Game State ==========
     private String currentGameId = null;
     private int digitCount = 3;  // from Difficulty (3, 4, or 5)
@@ -42,7 +45,12 @@ public class GameStateManager {
     private boolean isCurrentlyTopInning = true;  // 초(true) or 말(false)
     private String currentTurnPlayerId = null;
     private String myAnswerKey = null;  // Set when game starts
+
     private int myTeamNumber = 0;  // 1 or 2 for team mode
+
+    // 2v2 team
+    private String teamLeaderId = null;
+    private boolean isWaitingForAnswer = false;
 
     // Turn timer
     private Timer turnTimer = null;
@@ -97,6 +105,7 @@ public class GameStateManager {
         currentRoomPassword = null;
         roomPlayersList.clear();
         playerReadyStatus.clear();
+        playerTeamMap.clear();
         resetGameState();
     }
 
@@ -112,6 +121,8 @@ public class GameStateManager {
         currentTurnPlayerId = null;
         myAnswerKey = null;
         myTeamNumber = 0;
+        teamLeaderId  = null;
+        isWaitingForAnswer = false;
         remainingSeconds = 0;
         if (turnTimer != null && turnTimer.isRunning()) {
             turnTimer.stop();
@@ -252,6 +263,14 @@ public class GameStateManager {
         this.playerReadyStatus = playerReadyStatus;
     }
 
+    public Map<String, Integer> getPlayerTeamMap() {
+        return playerTeamMap;
+    }
+
+    public void setPlayerTeamMap(Map<String, Integer> playerTeamMap) {
+        this.playerTeamMap = playerTeamMap;
+    }
+
     // ========== Game Getters/Setters ==========
 
     public String getCurrentGameId() {
@@ -317,6 +336,14 @@ public class GameStateManager {
     public void setMyTeamNumber(int myTeamNumber) {
         this.myTeamNumber = myTeamNumber;
     }
+
+    public String getTeamLeaderId() { return teamLeaderId; }
+
+    public void setTeamLeaderId(String teamLeaderId) { this.teamLeaderId = teamLeaderId; }
+
+    public boolean isWaitingForAnswer() { return isWaitingForAnswer; }
+
+    public void setWaitingForAnswer(boolean waitingForAnswer) { this.isWaitingForAnswer = waitingForAnswer; }
 
     public Timer getTurnTimer() {
         return turnTimer;

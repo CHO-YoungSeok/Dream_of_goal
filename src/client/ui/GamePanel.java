@@ -305,6 +305,17 @@ public class GamePanel extends JPanel {
         // Clear prediction history when new game starts
         clearPredictionHistory();
 
+        // 2v2 팀전: 정답 설정 대기 상태 처리
+        boolean isWaiting = stateManager.isWaitingForAnswer();
+
+        // 정답 설정 대기 상태일 경우 (비대표 팀원) 입력 비활성화
+        if (isWaiting) {
+            setGuessInputEnabled(false);
+            l_turnInfo.setText(stateManager.getTeamLeaderId() + " 정답 설정 대기 중");
+        } else {
+            setGuessInputEnabled(false);
+        }
+
         // UI update
         numberDisplayPanel.revalidate();
         numberDisplayPanel.repaint();
@@ -350,7 +361,10 @@ public class GamePanel extends JPanel {
         l_roundInfo.setText(roundInfo);
         l_turnInfo.setText(turnInfo);
         l_turnInfo.setForeground(isMyTurn ? new Color(0, 128, 0) : new Color(50, 50, 50)); // Dark green if my turn, dark gray otherwise
-        b_submit.setEnabled(isMyTurn);
+
+        if (!stateManager.isWaitingForAnswer()) {
+            setGuessInputEnabled(isMyTurn);
+        }
     }
 
     /**
@@ -452,5 +466,18 @@ public class GamePanel extends JPanel {
         }
 
         listener.onChatSent(text);
+    }
+
+    private void setGuessInputEnabled(boolean enabled) {
+        b_submit.setEnabled(enabled);
+        b_backSpace.setEnabled(enabled);
+
+        // 숫자 버튼도 제어
+        Component[] components = ((JPanel) numberDisplayPanel.getParent().getComponent(3)).getComponents();
+        for (Component comp : components) {
+            if (comp instanceof JButton) {
+                comp.setEnabled(enabled);
+            }
+        }
     }
 }

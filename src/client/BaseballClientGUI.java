@@ -137,7 +137,14 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
                 handleChatAll(msg);
                 break;
             case CHAT_TEAM:
-                gamePanel.displayMessage(msg.toString(), new Color(0, 0, 139)); // Dark blue
+                String teamChatMsg = String.format("[To team] %s: %s", msg.getUserId(), msg.getContent());
+
+                // 현재 게임 중인 경우
+                if (currentState == UIState.GAME_SCREEN) {
+                    gamePanel.displayMessage(teamChatMsg, new Color(0, 0, 139)); // Dark blue
+                } else if (currentState == UIState.ROOM_WAITING_SCREEN) {
+                    roomWaitingPanel.addChatMessage(teamChatMsg, new Color(0, 0, 139));
+                }
                 break;
             case CHAT_ROOM:
                 handleChatRoom(msg);
@@ -245,6 +252,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void handleCreateRoomResponse(Message msg) {
         if (msg.isSuccess()) {
             stateManager.setCurrentRoomId(msg.getRoomId());
@@ -255,14 +263,14 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentTurnTimeLimit(msg.getTurnTimeLimit());
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
 
+            java.util.Map<String, Integer> playerTeams = null;
+
             // 플레이어 리스트 처리
             if (msg.getData() instanceof java.util.Map) {
-                @SuppressWarnings("unchecked")
                 java.util.Map<String, Object> roomData = (java.util.Map<String, Object>) msg.getData();
-                @SuppressWarnings("unchecked")
                 java.util.List<String> players = (java.util.List<String>) roomData.get("players");
-                @SuppressWarnings("unchecked")
                 java.util.Map<String, Boolean> readyStatus = (java.util.Map<String, Boolean>) roomData.get("readyStatus");
+                playerTeams = (java.util.Map<String, Integer>) roomData.get("playerTeams");
 
                 stateManager.setRoomPlayersList(players);
                 stateManager.setPlayerReadyStatus(readyStatus);
@@ -270,6 +278,11 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
 
             roomWaitingPanel.updateRoomInfo();
             roomWaitingPanel.updatePlayerList();
+
+            if (playerTeams != null) {
+                stateManager.setPlayerTeamMap(playerTeams);
+                stateManager.setMyTeamNumber(playerTeams.getOrDefault(stateManager.getCurrentUserId(), 0));
+            }
 
             switchToRoomWaitingScreen();
         } else {
@@ -280,6 +293,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void handleJoinRoomResponse(Message msg) {
         if (msg.isSuccess()) {
             stateManager.setCurrentRoomId(msg.getRoomId());
@@ -290,14 +304,14 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentTurnTimeLimit(msg.getTurnTimeLimit());
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
 
+            java.util.Map<String, Integer> playerTeams = null;
+
             // 플레이어 리스트 처리
             if (msg.getData() instanceof java.util.Map) {
-                @SuppressWarnings("unchecked")
                 java.util.Map<String, Object> roomData = (java.util.Map<String, Object>) msg.getData();
-                @SuppressWarnings("unchecked")
                 java.util.List<String> players = (java.util.List<String>) roomData.get("players");
-                @SuppressWarnings("unchecked")
                 java.util.Map<String, Boolean> readyStatus = (java.util.Map<String, Boolean>) roomData.get("readyStatus");
+                playerTeams = (java.util.Map<String, Integer>) roomData.get("playerTeams");
 
                 stateManager.setRoomPlayersList(players);
                 stateManager.setPlayerReadyStatus(readyStatus);
@@ -305,6 +319,11 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
 
             roomWaitingPanel.updateRoomInfo();
             roomWaitingPanel.updatePlayerList();
+
+            if (playerTeams != null) {
+                stateManager.setPlayerTeamMap(playerTeams);
+                stateManager.setMyTeamNumber(playerTeams.getOrDefault(stateManager.getCurrentUserId(), 0));
+            }
 
             switchToRoomWaitingScreen();
         } else {
@@ -315,6 +334,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void handleEditRoomResponse(Message msg) {
         if (msg.isSuccess()) {
             // 방 정보 업데이트
@@ -325,14 +345,14 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentTurnTimeLimit(msg.getTurnTimeLimit());
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
 
+            java.util.Map<String, Integer> playerTeams = null;
+
             // 플레이어 리스트 처리
             if (msg.getData() instanceof java.util.Map) {
-                @SuppressWarnings("unchecked")
                 java.util.Map<String, Object> roomData = (java.util.Map<String, Object>) msg.getData();
-                @SuppressWarnings("unchecked")
                 java.util.List<String> players = (java.util.List<String>) roomData.get("players");
-                @SuppressWarnings("unchecked")
                 java.util.Map<String, Boolean> readyStatus = (java.util.Map<String, Boolean>) roomData.get("readyStatus");
+                playerTeams = (java.util.Map<String, Integer>) roomData.get("playerTeams");
 
                 stateManager.setRoomPlayersList(players);
                 stateManager.setPlayerReadyStatus(readyStatus);
@@ -340,6 +360,12 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
 
             roomWaitingPanel.updateRoomInfo();
             roomWaitingPanel.updatePlayerList();
+
+            if (playerTeams != null) {
+                stateManager.setPlayerTeamMap(playerTeams);
+                stateManager.setMyTeamNumber(playerTeams.getOrDefault(stateManager.getCurrentUserId(), 0));
+            }
+
             UIHelper.showToast(this, "방 정보가 변경되었습니다.");
         } else {
             JOptionPane.showMessageDialog(this,
@@ -349,18 +375,22 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void handleRoomInfoUpdate(Message msg) {
         if (msg.getData() instanceof java.util.Map) {
-            @SuppressWarnings("unchecked")
             java.util.Map<String, Object> roomData = (java.util.Map<String, Object>) msg.getData();
-            @SuppressWarnings("unchecked")
             java.util.List<String> players = (java.util.List<String>) roomData.get("players");
-            @SuppressWarnings("unchecked")
             java.util.Map<String, Boolean> readyStatus = (java.util.Map<String, Boolean>) roomData.get("readyStatus");
+            java.util.Map<String, Integer> playerTeams = (java.util.Map<String, Integer>) roomData.get("playerTeams");
 
             stateManager.setRoomPlayersList(players);
             stateManager.setPlayerReadyStatus(readyStatus);
             stateManager.setRoomMasterUserId(msg.getRoomMaster());
+
+            if (playerTeams != null) {
+                stateManager.setPlayerTeamMap(playerTeams);
+                stateManager.setMyTeamNumber(playerTeams.getOrDefault(stateManager.getCurrentUserId(), 0));
+            }
 
             roomWaitingPanel.updatePlayerList();
             roomWaitingPanel.updateRoomInfo();
@@ -385,18 +415,23 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentTurnTimeLimit(msg.getTurnTimeLimit());
         }
 
+        stateManager.setTeamLeaderId(msg.getTeamLeaderId());
+        stateManager.setWaitingForAnswer(msg.isWaitingForAnswer());
+
         gamePanel.displayMessage("게임 시작! " + msg.getContent());
         gamePanel.setupForGame(stateManager.getDigitCount());
         switchToGameScreen();
 
-        // Prompt for answer key
-        String myAnswerKey = UIHelper.promptForAnswerKey(this, stateManager.getDigitCount());
-        stateManager.setMyAnswerKey(myAnswerKey);
-        gamePanel.displayMessage("정답이 설정되었습니다: " + myAnswerKey);
+        if (!stateManager.isWaitingForAnswer()) {
+            String myAnswerKey = UIHelper.promptForAnswerKey(this, stateManager.getDigitCount());
+            stateManager.setMyAnswerKey(myAnswerKey);
+            gamePanel.displayMessage("정답이 설정되었습니다: " + myAnswerKey);
 
-        // Send answer to server
-        Message answerMsg = Message.createGuessMessage(stateManager.getCurrentUserId(), myAnswerKey);
-        networkManager.sendMessage(answerMsg);
+            Message answerMsg = Message.createGuessMessage(stateManager.getCurrentUserId(), myAnswerKey);
+            networkManager.sendMessage(answerMsg);
+        } else {
+            gamePanel.displayMessage("팀 대표(" + stateManager.getTeamLeaderId() + ")가 정답을 설정 중입니다. 대기 중...", Color.GRAY);
+        }
     }
 
     private void handleTurnInfo(Message msg) {
@@ -640,6 +675,15 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             String content = message.substring(5);
             msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId(), content);
             roomWaitingPanel.addChatMessage(String.format("[전체] %s: %s", stateManager.getCurrentUserId(), content), new Color(0, 128, 0)); // Dark green
+        } else if (message.startsWith("/team ")) {
+            if (stateManager.getCurrentGameMode() != Message.GameMode.TWO_VS_TWO) {
+                roomWaitingPanel.addChatMessage("팀 채팅은 2v2 모드에서만 가능합니다.", Color.RED);
+                return;
+            }
+            String content = message.substring(6);
+            msg = new Message(Message.MessageType.CHAT_TEAM, stateManager.getCurrentUserId(), content);
+            // 보낸 메시지는 로컬에서 파란색으로 표시
+            roomWaitingPanel.addChatMessage(String.format("[To Team] %s: %s", stateManager.getCurrentUserId(), content), new Color(0, 0, 139)); // Dark blue
         } else {
             msg = new Message(Message.MessageType.CHAT_ROOM, stateManager.getCurrentUserId(), message);
             roomWaitingPanel.addChatMessage(String.format("%s: %s", stateManager.getCurrentUserId(), message), new Color(50, 50, 50)); // Dark gray
@@ -737,12 +781,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             msg = new Message(Message.MessageType.CHAT_ALL, stateManager.getCurrentUserId(), content);
             displayMessagePrefix = "[To All]: ";
             displayColor = new Color(0, 128, 0); // Dark green
-        } else if (message.startsWith("/team ")) {
-            String content = message.substring(6);
-            msg = new Message(Message.MessageType.CHAT_TEAM, stateManager.getCurrentUserId(), content);
-            displayMessagePrefix = "[To Team]: ";
-            displayColor = new Color(0, 0, 139); // Dark blue
-        } else if (message.startsWith("/room ")) {
+        }  else if (message.startsWith("/room ")) {
             String content = message.substring(6);
             msg = new Message(Message.MessageType.CHAT_ROOM, stateManager.getCurrentUserId(), content);
             displayMessagePrefix = "[To Room]: ";

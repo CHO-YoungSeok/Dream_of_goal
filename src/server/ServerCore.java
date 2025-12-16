@@ -159,6 +159,34 @@ public class ServerCore {
                 }
             }
         }
+        printDisplay("[USER_LIST_BROADCAST] 접속자 목록 업데이트 (" + userIds.size() + "명)");
+    }
+
+    public synchronized void sendUserListToClient(ClientHandler targetClient) {
+        java.util.List<String> userIds = new java.util.ArrayList<>();
+        java.util.Map<String, Message.UserStatus> statusMap = new java.util.HashMap<>();
+
+        // 1. 접속자 목록 및 상태 생성
+        synchronized (clientHandlers) {
+            for (ClientHandler client : clientHandlers) {
+                if (client.userId != null) {
+                    userIds.add(client.userId);
+                    statusMap.put(client.userId, client.userStatus);
+                }
+            }
+        }
+
+        // 2. 응답 메시지 생성
+        Message msg = new Message(Message.MessageType.USER_LIST_RESPONSE);
+        msg.setConnectedUsers(userIds);
+        msg.setUserStatusMap(statusMap);
+        msg.setSuccess(true);
+
+        // 3. 타겟 클라이언트에게만 전송
+        targetClient.sendMessage(msg);
+
+        // 4. 단일 응답 로그 출력 (ClientHandler에서 중복 로그는 막아두었음)
+        printDisplay("[USER_LIST_RESPONSE] SERVER → " + targetClient.userId + " | 접속자 목록 응답 (" + userIds.size() + "명)");
     }
 
     // 전체 채팅 브로드캐스트

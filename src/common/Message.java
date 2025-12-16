@@ -230,6 +230,8 @@ public class Message implements Serializable {
     private boolean isTop;              // 초공인지 말공인지 (true: 초, false: 말)
     private String currentTurnPlayer;   // 현재 턴 플레이어 ID
     private int teamNumber;             // 팀 번호 (1 or 2, 팀전에서만 사용)
+    private String teamLeaderId;        // 팀 대표 ID (2v2 정답 설정용)
+    private boolean isWaitingForAnswer; // 정답 설정 대기 상태 (비대표 팀원용)
 
     // 숫자야구 결과
     private String guess;               // 추측한 숫자
@@ -523,6 +525,13 @@ public class Message implements Serializable {
 
     public Serializable getData() { return data; }
     public void setData(Serializable data) { this.data = data; }
+
+    public String getTeamLeaderId() { return teamLeaderId; }
+    public void setTeamLeaderId(String teamLeaderId) { this.teamLeaderId = teamLeaderId; }
+
+    public boolean isWaitingForAnswer() { return isWaitingForAnswer; }
+    public void setWaitingForAnswer(boolean waitingForAnswer) { isWaitingForAnswer = waitingForAnswer; }
+
 
     // ========== Utility Methods ==========
 
