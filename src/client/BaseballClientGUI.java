@@ -253,9 +253,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentGameMode(msg.getGameMode());
             stateManager.setCurrentDifficulty(msg.getDifficulty());
             stateManager.setCurrentTurnTimeLimit(msg.getTurnTimeLimit());
-            stateManager.setCurrentRoomIsPrivate(msg.isPrivate());
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
-            stateManager.setCurrentRoomAllowSpectators(msg.isAllowSpectators());
 
             // 플레이어 리스트 처리
             if (msg.getData() instanceof java.util.HashMap) {
@@ -290,9 +288,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentGameMode(msg.getGameMode());
             stateManager.setCurrentDifficulty(msg.getDifficulty());
             stateManager.setCurrentTurnTimeLimit(msg.getTurnTimeLimit());
-            stateManager.setCurrentRoomIsPrivate(msg.isPrivate());
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
-            stateManager.setCurrentRoomAllowSpectators(msg.isAllowSpectators());
 
             // 플레이어 리스트 처리
             if (msg.getData() instanceof java.util.HashMap) {
@@ -327,7 +323,6 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setRoomMasterUserId(msg.getRoomMaster());
             stateManager.setCurrentDifficulty(msg.getDifficulty());
             stateManager.setCurrentTurnTimeLimit(msg.getTurnTimeLimit());
-            stateManager.setCurrentRoomIsPrivate(msg.isPrivate());
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
 
             // 플레이어 리스트 처리
@@ -547,16 +542,14 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     @Override
     public void onCreateRoomRequested(String roomName, Message.GameMode gameMode,
                                       Message.Difficulty difficulty, Message.TurnTimeLimit turnTimeLimit,
-                                      boolean isPrivate, String password, boolean allowSpectators) {
+                                      String password) {
         Message msg = Message.createCreateRoomRequest(
             stateManager.getCurrentUserId(),
             roomName,
             gameMode,
             difficulty,
             turnTimeLimit,
-            isPrivate,
-            password,
-            allowSpectators
+            password
         );
         networkManager.sendMessage(msg);
     }
@@ -576,14 +569,13 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     @Override
     public void onEditRoomConfirmed(String roomName, Message.Difficulty difficulty,
                                     Message.TurnTimeLimit turnTimeLimit,
-                                    boolean isPrivate, String password) {
+                                    String password) {
         Message msg = Message.createEditRoomRequest(
             stateManager.getCurrentUserId(),
             stateManager.getCurrentRoomId(),
             roomName,
             difficulty,
             turnTimeLimit,
-            isPrivate,
             password
         );
         networkManager.sendMessage(msg);
@@ -700,9 +692,7 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         currentSettings.setGameMode(stateManager.getCurrentGameMode());
         currentSettings.setDifficulty(stateManager.getCurrentDifficulty());
         currentSettings.setTurnTimeLimit(stateManager.getCurrentTurnTimeLimit());
-        currentSettings.setPrivate(stateManager.isCurrentRoomIsPrivate());
         currentSettings.setRoomPassword(stateManager.getCurrentRoomPassword());
-        currentSettings.setAllowSpectators(stateManager.isCurrentRoomAllowSpectators());
 
         lobbyPanel.showCreateRoomDialog(true, currentSettings);
     }

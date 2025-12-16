@@ -20,7 +20,7 @@ public class RoomManager {
     public GameRoom createRoom(String roomName, String masterUserId,
                                Message.GameMode gameMode, Message.Difficulty difficulty,
                                Message.TurnTimeLimit turnTimeLimit,
-                               boolean isPrivate, String roomPassword) {
+                               String roomPassword) {
 
         if (rooms.size() >= maxRooms) {
             return null;
@@ -30,7 +30,7 @@ public class RoomManager {
 
         GameRoom room = new GameRoom(assignedRoomId, roomName, masterUserId,
                 gameMode, difficulty, turnTimeLimit,
-                isPrivate, roomPassword, serverCore);
+                roomPassword, serverCore);
         rooms.add(room);
         serverCore.printDisplay("방 생성: [" + room.roomId + "] " + roomName);
         return room;
@@ -56,7 +56,7 @@ public class RoomManager {
     public GameRoom editRoom(GameRoom oldRoom, String roomName,
                              Message.Difficulty difficulty,
                              Message.TurnTimeLimit turnTimeLimit,
-                             boolean isPrivate, String roomPassword) {
+                             String roomPassword) {
 
         if (oldRoom.isGameRunning) {
             return null;
@@ -76,7 +76,7 @@ public class RoomManager {
         // 새 방 생성
         GameRoom newRoom = new GameRoom(retainedRoomId, roomName, roomMaster,
                 gameMode, difficulty, turnTimeLimit,
-                isPrivate, roomPassword, serverCore);
+                roomPassword, serverCore);
         rooms.add(newRoom);
         serverCore.printDisplay("방 정보 변경: [" + newRoom.roomId + "] " + roomName);
 
@@ -109,7 +109,7 @@ public class RoomManager {
         for (GameRoom room : rooms) {
             Message roomInfo = new Message(Message.MessageType.ROOM_LIST_RESPONSE, room.roomMaster);
             roomInfo.setRoomId(room.roomId);
-            roomInfo.setRoomName(room.roomName + (room.isPrivate ? " 🔒" : ""));
+            roomInfo.setRoomName(room.roomName);
             roomInfo.setRoomStatus(room.isGameRunning ?
                     Message.RoomStatus.IN_GAME :
                     Message.RoomStatus.WAITING);
@@ -118,7 +118,6 @@ public class RoomManager {
             roomInfo.setGameMode(room.gameMode);
             roomInfo.setDifficulty(room.difficulty);
             roomInfo.setRoomMaster(room.roomMaster);
-            roomInfo.setPrivate(room.isPrivate);
 
             roomList.add(roomInfo);
         }

@@ -54,7 +54,7 @@ public class RoomWaitingPanel extends JPanel {
         // User ID display
         userIdLabel = new JLabel("User: " + stateManager.getCurrentUserId());
         userIdLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        userIdLabel.setForeground(new Color(0, 180, 0)); // Green
+        userIdLabel.setForeground(new Color(30, 100, 30)); // Dark Green
         titleRow.add(userIdLabel, BorderLayout.EAST);
 
         topPanel.add(titleRow);
@@ -248,11 +248,8 @@ public class RoomWaitingPanel extends JPanel {
         String userId = stateManager.getCurrentUserId();
         userIdLabel.setText("User: " + (userId != null ? userId : "null"));
 
-        // Room title (with lock icon if private)
+        // Room title
         String titleText = stateManager.getCurrentRoomName();
-        if (stateManager.isCurrentRoomIsPrivate()) {
-            titleText += " 🔒";
-        }
         l_roomTitle.setText(titleText);
 
         // Room settings
@@ -262,9 +259,6 @@ public class RoomWaitingPanel extends JPanel {
             stateManager.getCurrentDifficulty() != null ? stateManager.getCurrentDifficulty().getDisplayName() : "",
             stateManager.getCurrentTurnTimeLimit() != null ? stateManager.getCurrentTurnTimeLimit().getDisplayName() : ""
         );
-        if (stateManager.isCurrentRoomAllowSpectators()) {
-            settingsText += " | 관전 허용";
-        }
         l_roomSettings.setText(settingsText);
 
         // Button states

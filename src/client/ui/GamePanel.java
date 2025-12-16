@@ -75,7 +75,7 @@ public class GamePanel extends JPanel {
         // User ID display
         userIdLabel = new JLabel("User: " + stateManager.getCurrentUserId());
         userIdLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        userIdLabel.setForeground(new Color(0, 180, 0)); // Green
+        userIdLabel.setForeground(new Color(30, 100, 30));
         topPanel.add(userIdLabel, BorderLayout.EAST);
 
         add(topPanel, BorderLayout.NORTH);

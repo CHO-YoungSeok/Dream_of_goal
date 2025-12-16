@@ -12,13 +12,11 @@ public interface LobbyListener {
      * @param gameMode Game mode
      * @param difficulty Difficulty level
      * @param turnTimeLimit Turn time limit
-     * @param isPrivate Whether room is private
-     * @param password Room password (if private)
-     * @param allowSpectators Whether spectators are allowed
+     * @param password Room password
      */
     void onCreateRoomRequested(String roomName, Message.GameMode gameMode,
                                 Message.Difficulty difficulty, Message.TurnTimeLimit turnTimeLimit,
-                                boolean isPrivate, String password, boolean allowSpectators);
+                                String password);
 
     /**
      * Called when user wants to join a room
@@ -37,12 +35,11 @@ public interface LobbyListener {
      * @param roomName New room name
      * @param difficulty New difficulty level
      * @param turnTimeLimit New turn time limit
-     * @param isPrivate Whether room is private
-     * @param password Room password (if private)
+     * @param password Room password
      */
     void onEditRoomConfirmed(String roomName, Message.Difficulty difficulty,
                             Message.TurnTimeLimit turnTimeLimit,
-                            boolean isPrivate, String password);
+                            String password);
 
     /**
      * Called when user sends a lobby chat message
