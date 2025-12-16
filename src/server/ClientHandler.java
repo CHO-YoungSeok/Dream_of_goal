@@ -583,6 +583,8 @@ public class ClientHandler implements Runnable {
         try {
             out.writeObject(msg);
             out.flush();
+            // 서버 -> 클라이언트 메시지 로깅
+            logServerMessage(msg);
         } catch (IOException e) {
             serverCore.printDisplay("메시지 전송 오류 (" + userId + "): " + e.getMessage());
         }
@@ -597,6 +599,18 @@ public class ClientHandler implements Runnable {
         } catch (Exception e) {
             // 로깅 오류가 메시지 처리를 방해하지 않도록 예외 처리
             serverCore.printDisplay("[로그오류] " + msg.getType());
+        }
+    }
+
+    private void logServerMessage(Message msg) {
+        try {
+            String userIdStr = (userId != null) ? userId : "미인증";
+            String logMessage = formatServerLogMessage(msg, userIdStr);
+            if (logMessage != null && !logMessage.isEmpty()) {
+                serverCore.printDisplay(logMessage);
+            }
+        } catch (Exception e) {
+            // 로깅 오류가 메시지 처리를 방해하지 않도록 예외 처리
         }
     }
 
@@ -737,6 +751,180 @@ public class ClientHandler implements Runnable {
                 : content;
             sb.append(" | \"").append(preview).append("\"");
         }
+    }
+
+    private String formatServerLogMessage(Message msg, String userIdStr) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[").append(msg.getType()).append("] SERVER → ").append(userIdStr);
+
+        switch (msg.getType()) {
+            case LOGIN_RESPONSE:
+                if (msg.isSuccess()) {
+                    sb.append(" | 로그인 성공 응답");
+                } else {
+                    sb.append(" | 로그인 실패 응답");
+                }
+                break;
+
+            case REGISTER_RESPONSE:
+                if (msg.isSuccess()) {
+                    sb.append(" | 회원가입 성공 응답");
+                } else {
+                    sb.append(" | 회원가입 실패 응답");
+                }
+                break;
+
+            case ROOM_LIST_RESPONSE:
+                sb.append(" | 방 목록 전송");
+                if (msg.getData() != null) {
+                    @SuppressWarnings("unchecked")
+                    Vector<Message> roomList = (Vector<Message>) msg.getData();
+                    sb.append(" (").append(roomList.size()).append("개 방)");
+                }
+                break;
+
+            case CREATE_ROOM_RESPONSE:
+                if (msg.isSuccess()) {
+                    sb.append(" | 방 생성 성공 응답");
+                    if (msg.getRoomId() != 0) {
+                        sb.append(" | 방ID: ").append(msg.getRoomId());
+                    }
+                } else {
+                    sb.append(" | 방 생성 실패 응답");
+                }
+                break;
+
+            case JOIN_ROOM_RESPONSE:
+                if (msg.isSuccess()) {
+                    sb.append(" | 방 입장 성공 응답");
+                    if (msg.getRoomId() != 0) {
+                        sb.append(" | 방ID: ").append(msg.getRoomId());
+                    }
+                } else {
+                    sb.append(" | 방 입장 실패 응답");
+                }
+                break;
+
+            case EDIT_ROOM_RESPONSE:
+                if (msg.isSuccess()) {
+                    sb.append(" | 방 수정 성공 응답");
+                } else {
+                    sb.append(" | 방 수정 실패 응답");
+                }
+                break;
+
+            case LEAVE_ROOM:
+                sb.append(" | 방 퇴장 통지");
+                break;
+
+            case ERROR:
+                sb.append(" | 에러: ");
+                if (msg.getErrorCode() != null) {
+                    sb.append(msg.getErrorCode());
+                }
+                if (msg.getContent() != null) {
+                    sb.append(" - ").append(msg.getContent());
+                }
+                break;
+
+            case CHAT_ROOM:
+                sb.append(" | 방채팅 전달");
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                appendChatPreview(sb, msg.getContent());
+                break;
+
+            case CHAT_TEAM:
+                sb.append(" | 팀채팅 전달");
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                appendChatPreview(sb, msg.getContent());
+                break;
+
+            case CHAT_ALL:
+                sb.append(" | 전체채팅 전달");
+                appendChatPreview(sb, msg.getContent());
+                break;
+
+            case CHAT_WHISPER:
+                sb.append(" | 귓속말 전달");
+                if (msg.getTargetUserId() != null) {
+                    sb.append(" | 발신: ").append(msg.getUserId());
+                }
+                appendChatPreview(sb, msg.getContent());
+                break;
+
+            case USER_LIST_RESPONSE:
+                sb.append(" | 접속자 목록 업데이트");
+                if (msg.getData() != null) {
+                    @SuppressWarnings("unchecked")
+                    Vector<Hashtable<String, String>> userList = (Vector<Hashtable<String, String>>) msg.getData();
+                    sb.append(" (").append(userList.size()).append("명)");
+                }
+                break;
+
+            case ROOM_INFO_UPDATE:
+                sb.append(" | 방 정보 업데이트");
+                if (msg.getRoomId() != 0) {
+                    sb.append(" | 방ID: ").append(msg.getRoomId());
+                }
+                break;
+
+            case START_GAME:
+                sb.append(" | 게임 시작 통지");
+                if (currentRoom != null) {
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
+                }
+                break;
+
+            case TURN_INFO:
+                sb.append(" | 턴 시작 통지");
+                if (msg.getCurrentTurnPlayer() != null) {
+                    sb.append(" | 현재 플레이어: ").append(msg.getCurrentTurnPlayer());
+                }
+                break;
+
+            case GUESS_RESULT:
+                sb.append(" | 추측 결과");
+                if (msg.getGuess() != null) {
+                    sb.append(" | 숫자: ").append(msg.getGuess());
+                    sb.append(" | ").append(msg.getStrike()).append("S ").append(msg.getBall()).append("B");
+                }
+                break;
+
+            case END_GAME:
+            case GAME_RESULT:
+                sb.append(" | 게임 종료 통지");
+                if (msg.getWinnerId() != null) {
+                    sb.append(" | 승자: ").append(msg.getWinnerId());
+                } else if (msg.getWinnerTeam() != 0) {
+                    sb.append(" | 승리 팀: ").append(msg.getWinnerTeam());
+                } else if (msg.isDraw()) {
+                    sb.append(" | 무승부");
+                }
+                break;
+
+            case STATS_RESPONSE:
+                sb.append(" | 전적 정보 응답");
+                break;
+
+            case GAME_HISTORY_RESPONSE:
+                sb.append(" | 게임 기록 응답");
+                if (msg.getData() != null) {
+                    @SuppressWarnings("unchecked")
+                    Vector<Hashtable<String, String>> history = (Vector<Hashtable<String, String>>) msg.getData();
+                    sb.append(" (").append(history.size()).append("개 기록)");
+                }
+                break;
+
+            default:
+                // 기타 메시지는 타입만 로깅
+                break;
+        }
+
+        return sb.toString();
     }
 
     // 연결 종료

@@ -2,11 +2,17 @@ package server;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 
 // 서버 GUI 메인 클래스
 
 public class BaseballServerGUI extends JFrame {
     private int port = 54321;
+    private static String serverAddress;
+    private static int serverPort;
 
     private JTextArea t_display;
     private JButton b_start, b_stop;
@@ -66,7 +72,27 @@ public class BaseballServerGUI extends JFrame {
         });
     }
 
+    private static void loadConnectionInfo() {
+        try (FileInputStream fis = new FileInputStream("server.txt");
+             BufferedReader reader = new BufferedReader(new InputStreamReader(fis))) {
+            serverAddress = reader.readLine().trim();
+            serverPort = Integer.parseInt(reader.readLine().trim());
+        } catch (IOException e) {
+            System.err.println("Failed to load connection info: " + e.getMessage());
+            System.err.println("Using defaults: localhost:54321");
+            serverAddress = "localhost";
+            serverPort = 54321;
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid port number in server.txt");
+            System.err.println("Using defaults: localhost:54321");
+            serverAddress = "localhost";
+            serverPort = 54321;
+        }
+    }
+
     public static void main(String[] args) {
-        new BaseballServerGUI(54321);
+        loadConnectionInfo();
+        System.out.println("Starting server at " + serverAddress + ":" + serverPort);
+        new BaseballServerGUI(serverPort);
     }
 }
