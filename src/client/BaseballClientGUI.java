@@ -256,9 +256,9 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
 
             // 플레이어 리스트 처리
-            if (msg.getData() instanceof java.util.HashMap) {
+            if (msg.getData() instanceof java.util.Map) {
                 @SuppressWarnings("unchecked")
-                java.util.HashMap<String, Object> roomData = (java.util.HashMap<String, Object>) msg.getData();
+                java.util.Map<String, Object> roomData = (java.util.Map<String, Object>) msg.getData();
                 @SuppressWarnings("unchecked")
                 java.util.List<String> players = (java.util.List<String>) roomData.get("players");
                 @SuppressWarnings("unchecked")
@@ -291,9 +291,9 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
 
             // 플레이어 리스트 처리
-            if (msg.getData() instanceof java.util.HashMap) {
+            if (msg.getData() instanceof java.util.Map) {
                 @SuppressWarnings("unchecked")
-                java.util.HashMap<String, Object> roomData = (java.util.HashMap<String, Object>) msg.getData();
+                java.util.Map<String, Object> roomData = (java.util.Map<String, Object>) msg.getData();
                 @SuppressWarnings("unchecked")
                 java.util.List<String> players = (java.util.List<String>) roomData.get("players");
                 @SuppressWarnings("unchecked")
@@ -326,9 +326,9 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             stateManager.setCurrentRoomPassword(msg.getRoomPassword());
 
             // 플레이어 리스트 처리
-            if (msg.getData() instanceof java.util.HashMap) {
+            if (msg.getData() instanceof java.util.Map) {
                 @SuppressWarnings("unchecked")
-                java.util.HashMap<String, Object> roomData = (java.util.HashMap<String, Object>) msg.getData();
+                java.util.Map<String, Object> roomData = (java.util.Map<String, Object>) msg.getData();
                 @SuppressWarnings("unchecked")
                 java.util.List<String> players = (java.util.List<String>) roomData.get("players");
                 @SuppressWarnings("unchecked")
@@ -350,9 +350,9 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     }
 
     private void handleRoomInfoUpdate(Message msg) {
-        if (msg.getData() instanceof java.util.HashMap) {
+        if (msg.getData() instanceof java.util.Map) {
             @SuppressWarnings("unchecked")
-            java.util.HashMap<String, Object> roomData = (java.util.HashMap<String, Object>) msg.getData();
+            java.util.Map<String, Object> roomData = (java.util.Map<String, Object>) msg.getData();
             @SuppressWarnings("unchecked")
             java.util.List<String> players = (java.util.List<String>) roomData.get("players");
             @SuppressWarnings("unchecked")
