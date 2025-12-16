@@ -17,7 +17,6 @@ public class GameRoom {
     Message.GameMode gameMode;
     Message.Difficulty difficulty;
     Message.TurnTimeLimit turnTimeLimit;
-    boolean isPrivate;
     String roomPassword;
 
     // 플레이어 관리
@@ -39,7 +38,7 @@ public class GameRoom {
 
     public GameRoom(int roomId, String roomName, String roomMaster,
                     Message.GameMode gameMode, Message.Difficulty difficulty,
-                    Message.TurnTimeLimit turnTimeLimit, boolean isPrivate,
+                    Message.TurnTimeLimit turnTimeLimit,
                     String roomPassword, ServerCore serverCore) {
         this.roomId = roomId;
         this.roomName = roomName;
@@ -47,7 +46,6 @@ public class GameRoom {
         this.gameMode = gameMode;
         this.difficulty = difficulty;
         this.turnTimeLimit = turnTimeLimit;
-        this.isPrivate = isPrivate;
         this.roomPassword = roomPassword;
         this.serverCore = serverCore;
     }
@@ -61,7 +59,6 @@ public class GameRoom {
         msg.setGameMode(gameMode);
         msg.setDifficulty(difficulty);
         msg.setTurnTimeLimit(turnTimeLimit);
-        msg.setPrivate(isPrivate);
         msg.setRoomStatus(isGameRunning ? Message.RoomStatus.IN_GAME : Message.RoomStatus.WAITING);
         msg.setCurrentPlayers(players.size());
         msg.setMaxPlayers(gameMode.getMaxPlayers());

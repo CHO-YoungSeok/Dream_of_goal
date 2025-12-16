@@ -215,7 +215,6 @@ public class ClientHandler implements Runnable {
                 msg.getGameMode(),
                 msg.getDifficulty(),
                 msg.getTurnTimeLimit(),
-                msg.isPrivate(),
                 msg.getRoomPassword()
         );
 
@@ -260,14 +259,6 @@ public class ClientHandler implements Runnable {
             return;
         }
 
-        // 비공개 방 비밀번호 확인
-        if (room.isPrivate) {
-            String inputPassword = msg.getRoomPassword();
-            if (inputPassword == null || !inputPassword.equals(room.roomPassword)) {
-                sendMessage(Message.createErrorMessage(Message.ErrorCode.WRONG_PASSWORD));
-                return;
-            }
-        }
 
         currentRoom = room;
         room.addPlayer(this);
@@ -310,7 +301,6 @@ public class ClientHandler implements Runnable {
                 msg.getRoomName(),
                 msg.getDifficulty(),
                 msg.getTurnTimeLimit(),
-                msg.isPrivate(),
                 msg.getRoomPassword()
         );
 

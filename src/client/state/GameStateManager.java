@@ -28,9 +28,7 @@ public class GameStateManager {
     private Message.GameMode currentGameMode = null;
     private Message.Difficulty currentDifficulty = null;
     private Message.TurnTimeLimit currentTurnTimeLimit = null;
-    private boolean currentRoomIsPrivate = false;
     private String currentRoomPassword = null;
-    private boolean currentRoomAllowSpectators = false;
 
     // Room players tracking
     private List<String> roomPlayersList = new ArrayList<>();
@@ -96,9 +94,7 @@ public class GameStateManager {
         currentGameMode = null;
         currentDifficulty = null;
         currentTurnTimeLimit = null;
-        currentRoomIsPrivate = false;
         currentRoomPassword = null;
-        currentRoomAllowSpectators = false;
         roomPlayersList.clear();
         playerReadyStatus.clear();
         resetGameState();
@@ -232,28 +228,12 @@ public class GameStateManager {
         }
     }
 
-    public boolean isCurrentRoomIsPrivate() {
-        return currentRoomIsPrivate;
-    }
-
-    public void setCurrentRoomIsPrivate(boolean currentRoomIsPrivate) {
-        this.currentRoomIsPrivate = currentRoomIsPrivate;
-    }
-
     public String getCurrentRoomPassword() {
         return currentRoomPassword;
     }
 
     public void setCurrentRoomPassword(String currentRoomPassword) {
         this.currentRoomPassword = currentRoomPassword;
-    }
-
-    public boolean isCurrentRoomAllowSpectators() {
-        return currentRoomAllowSpectators;
-    }
-
-    public void setCurrentRoomAllowSpectators(boolean currentRoomAllowSpectators) {
-        this.currentRoomAllowSpectators = currentRoomAllowSpectators;
     }
 
     public List<String> getRoomPlayersList() {

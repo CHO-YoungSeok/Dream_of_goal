@@ -258,16 +258,7 @@ public class LobbyPanel extends JPanel {
             return;
         }
 
-        // Check if room is private (has 🔒 in name)
-        String password = null;
-        if (roomName != null && roomName.contains("비공개")) {
-            password = UIHelper.showPasswordDialog(this, "비공개 방입니다. 비밀번호를 입력하세요:");
-            if (password == null) {
-                return; // User cancelled
-            }
-        }
-
-        listener.onJoinRoomRequested(roomId, password);
+        listener.onJoinRoomRequested(roomId, null);
     }
 
     private void showCreateRoomDialog() {
@@ -400,53 +391,6 @@ public class LobbyPanel extends JPanel {
         turnTimeLimitPanel.add(l_turnTimeLimit);
         turnTimeLimitPanel.add(cb_turnTimeLimit);
 
-        // Private room checkbox
-        JPanel privateRoomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        privateRoomPanel.setOpaque(false);
-        JCheckBox chk_isPrivate = new JCheckBox("비공개 방");
-        chk_isPrivate.setFont(new Font("Arial", Font.BOLD, 16));
-        chk_isPrivate.setForeground(Color.WHITE);
-        chk_isPrivate.setOpaque(false);
-        if (isEditMode && currentSettings != null) {
-            chk_isPrivate.setSelected(currentSettings.isPrivate());
-        }
-        privateRoomPanel.add(chk_isPrivate);
-
-        // Password
-        JPanel passwordPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        passwordPanel.setOpaque(false);
-        JLabel l_password = new JLabel("비밀번호:");
-        l_password.setFont(new Font("Arial", Font.BOLD, 16));
-        l_password.setForeground(Color.WHITE);
-        JPasswordField t_password = new JPasswordField(20);
-        t_password.setFont(new Font("Arial", Font.PLAIN, 14));
-        t_password.setEnabled(chk_isPrivate.isSelected());
-        if (isEditMode && currentSettings != null && currentSettings.getRoomPassword() != null) {
-            t_password.setText(currentSettings.getRoomPassword());
-        }
-        passwordPanel.add(l_password);
-        passwordPanel.add(t_password);
-
-        // Private checkbox listener
-        chk_isPrivate.addActionListener(e -> {
-            t_password.setEnabled(chk_isPrivate.isSelected());
-            if (!chk_isPrivate.isSelected()) {
-                t_password.setText("");
-            }
-        });
-
-        // Allow spectators
-        JPanel spectatorPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        spectatorPanel.setOpaque(false);
-        JCheckBox chk_allowSpectators = new JCheckBox("관전 허용");
-        chk_allowSpectators.setFont(new Font("Arial", Font.BOLD, 16));
-        chk_allowSpectators.setForeground(Color.WHITE);
-        chk_allowSpectators.setOpaque(false);
-        if (isEditMode && currentSettings != null) {
-            chk_allowSpectators.setSelected(currentSettings.isAllowSpectators());
-        }
-        spectatorPanel.add(chk_allowSpectators);
-
         // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
         buttonPanel.setOpaque(false);
@@ -472,16 +416,6 @@ public class LobbyPanel extends JPanel {
                 return;
             }
 
-            boolean isPrivate = chk_isPrivate.isSelected();
-            String password = new String(t_password.getPassword()).trim();
-            if (isPrivate && password.isEmpty()) {
-                JOptionPane.showMessageDialog(dialog,
-                    "비공개 방은 비밀번호를 입력해야 합니다",
-                    "입력 필요",
-                    JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
             // Convert to enums
             Message.GameMode gameMode = cb_gameMode.getSelectedIndex() == 0
                 ? Message.GameMode.ONE_VS_ONE
@@ -494,17 +428,14 @@ public class LobbyPanel extends JPanel {
                 cb_turnTimeLimit.getSelectedIndex() == 1 ? Message.TurnTimeLimit.THIRTY :
                 Message.TurnTimeLimit.SIXTY;
 
-            boolean allowSpectators = chk_allowSpectators.isSelected();
-
             // Notify listener
             if (isEditMode) {
-                // 방 정보 변경 (게임 모드와 관전 허용은 변경 불가)
+                // 방 정보 변경 (게임 모드는 변경 불가)
                 listener.onEditRoomConfirmed(
                     roomName,
                     difficulty,
                     turnTimeLimit,
-                    isPrivate,
-                    isPrivate ? password : null
+                    null
                 );
             } else {
                 // 방 생성
@@ -513,9 +444,7 @@ public class LobbyPanel extends JPanel {
                     gameMode,
                     difficulty,
                     turnTimeLimit,
-                    isPrivate,
-                    isPrivate ? password : null,
-                    allowSpectators
+                    null
                 );
             }
 
@@ -536,12 +465,6 @@ public class LobbyPanel extends JPanel {
         backgroundPanel.add(difficultyPanel);
         backgroundPanel.add(Box.createRigidArea(new Dimension(0, 10)));
         backgroundPanel.add(turnTimeLimitPanel);
-        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        backgroundPanel.add(privateRoomPanel);
-        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        backgroundPanel.add(passwordPanel);
-        backgroundPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        backgroundPanel.add(spectatorPanel);
         backgroundPanel.add(Box.createRigidArea(new Dimension(0, 20)));
         backgroundPanel.add(buttonPanel);
         backgroundPanel.add(Box.createVerticalGlue());
