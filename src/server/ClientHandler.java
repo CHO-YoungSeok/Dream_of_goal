@@ -527,7 +527,7 @@ public class ClientHandler implements Runnable {
 
             // 채팅 메시지로 전적 정보 전송
             String statsMessage = String.format(
-                "[%s님의 전적]\n승: %s | 패: %s | 무: %s | 승률: %s%%",
+                "\n\n[%s님의 전적]\n승: %s | 패: %s | 무: %s | 승률: %s%%",
                 targetUserId, wins, losses, draws, winRate
             );
 
