@@ -51,6 +51,9 @@ public class Message implements Serializable {
         END_GAME,               // 게임 종료 (S → C)
         GAME_RESULT,            // 게임 결과 (S → C)
         STAY_IN_ROOM,           // 방에 머무르기 (C → S)
+        SET_TEAM_ANSWER,        // 팀 정답 설정 (C → S)
+        SET_TEAM_ANSWER_RES,    // 팀 정답 설정 결과 (S → C)
+        WAIT_TEAM_ANSWER,       // 정답 설정 대기 알림 (S → C)
 
         // 채팅 (5xxx)
         CHAT_ALL,               // 전체 채팅 (C ↔ S)
@@ -181,6 +184,11 @@ public class Message implements Serializable {
         DUPLICATE_DIGITS(3003, "중복된 숫자는 사용할 수 없습니다"),
         OUT_OF_RANGE(3004, "1~9 범위의 숫자만 사용할 수 있습니다"),
 
+        // 팀전 관련 (4xxx)
+        NOT_TEAM_LEADER(4001, "팀 대표만 정답을 설정할 수 있습니다"),
+        NOT_YOUR_TURN_IN_TEAM(4002, "팀 내 당신의 입력 순서가 아닙니다"),
+        WAITING_FOR_OPPONENT_ANSWER(4003, "상대 팀이 정답 설정을 완료할 때까지 기다려주세요"),
+
         // 서버 관련 (9xxx)
         SERVER_FULL(9001, "서버 정원이 가득 찼습니다"),
         UNKNOWN_ERROR(9999, "알 수 없는 오류가 발생했습니다");
@@ -232,6 +240,9 @@ public class Message implements Serializable {
     private int teamNumber;             // 팀 번호 (1 or 2, 팀전에서만 사용)
     private String teamLeaderId;        // 팀 대표 ID (2v2 정답 설정용)
     private boolean isWaitingForAnswer; // 정답 설정 대기 상태 (비대표 팀원용)
+    private String nextInputPlayerId;   // 다음 우리 팀 턴의 입력 예정자 (S → C)
+    private int teamAScore;             // 실시간 점수 표기용
+    private int teamBScore;             // 실시간 점수 표기용
 
     // 숫자야구 결과
     private String guess;               // 추측한 숫자
@@ -410,6 +421,27 @@ public class Message implements Serializable {
         Message msg = new Message(MessageType.ERROR);
         msg.errorCode = errorCode;
         msg.errorMessage = customMessage;
+        return msg;
+    }
+
+    /**
+     * 팀 정답 설정 메시지 생성 (팀 대표용)
+     */
+    public static Message createSetTeamAnswerRequest(String userId, String answer) {
+        Message msg = new Message(MessageType.SET_TEAM_ANSWER, userId);
+        msg.guess = answer;
+        return msg;
+    }
+
+    /**
+     * 턴 정보 업데이트 메시지 (팀 내부 예약자 정보 포함)
+     */
+    public static Message createTurnInfo(int round, boolean isTop, String currentTurnTeam, String nextInputPlayerId) {
+        Message msg = new Message(MessageType.TURN_INFO);
+        msg.round = round;
+        msg.isTop = isTop;
+        msg.content = currentTurnTeam; // "TeamA" 또는 "TeamB"
+        msg.nextInputPlayerId = nextInputPlayerId;
         return msg;
     }
 
