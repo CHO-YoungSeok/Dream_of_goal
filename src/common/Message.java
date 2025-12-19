@@ -329,8 +329,8 @@ public class Message implements Serializable {
      * 방 생성 요청 메시지 생성
      */
     public static Message createCreateRoomRequest(String userId, String roomName,
-            GameMode gameMode, Difficulty difficulty, TurnTimeLimit turnTimeLimit,
-            String roomPassword) {
+                                                  GameMode gameMode, Difficulty difficulty, TurnTimeLimit turnTimeLimit,
+                                                  String roomPassword) {
         Message msg = new Message(MessageType.CREATE_ROOM_REQUEST, userId);
         msg.roomName = roomName;
         msg.gameMode = gameMode;
@@ -354,8 +354,8 @@ public class Message implements Serializable {
      * 방 정보 변경 요청 메시지 생성
      */
     public static Message createEditRoomRequest(String userId, int roomId, String roomName,
-            Difficulty difficulty, TurnTimeLimit turnTimeLimit,
-            String roomPassword) {
+                                                Difficulty difficulty, TurnTimeLimit turnTimeLimit,
+                                                String roomPassword) {
         Message msg = new Message(MessageType.EDIT_ROOM_REQUEST, userId);
         msg.roomId = roomId;
         msg.roomName = roomName;
@@ -613,12 +613,12 @@ public class Message implements Serializable {
 
             case GUESS_RESULT:
                 sb.append(" ").append(userId).append(": ").append(guess)
-                  .append(" → ").append(strike).append("S ").append(ball).append("B");
+                        .append(" → ").append(strike).append("S ").append(ball).append("B");
                 break;
 
             case START_GAME:
                 sb.append(" Game started! [").append(gameMode.getDisplayName())
-                  .append(" / ").append(difficulty.getDisplayName()).append("]");
+                        .append(" / ").append(difficulty.getDisplayName()).append("]");
                 break;
 
             case TURN_INFO:

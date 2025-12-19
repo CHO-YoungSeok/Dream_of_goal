@@ -233,8 +233,8 @@ public class GamePanel extends JPanel {
         card.setLayout(new BorderLayout(3, 3));
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(200, 200, 200), 1, true),
-            BorderFactory.createEmptyBorder(6, 8, 6, 8)
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 1, true),
+                BorderFactory.createEmptyBorder(6, 8, 6, 8)
         ));
         card.setPreferredSize(new Dimension(100, 55));
         card.setMaximumSize(new Dimension(100, 55));
@@ -274,6 +274,7 @@ public class GamePanel extends JPanel {
 
     /**
      * Setup UI for game with specified digit count
+     *
      * @param digitCount Number of digits (3, 4, or 5)
      */
     public void setupForGame(int digitCount) {
@@ -323,6 +324,7 @@ public class GamePanel extends JPanel {
 
     /**
      * Display message in chat area
+     *
      * @param message Message to display
      */
     public void displayMessage(String message) {
@@ -331,8 +333,9 @@ public class GamePanel extends JPanel {
 
     /**
      * Display message in chat area with color
+     *
      * @param message Message to display
-     * @param color Text color
+     * @param color   Text color
      */
     public void displayMessage(String message, Color color) {
         StyledDocument doc = t_display.getStyledDocument();
@@ -349,9 +352,10 @@ public class GamePanel extends JPanel {
 
     /**
      * Update turn information display
+     *
      * @param roundInfo Round info text (e.g., "1회 초")
-     * @param turnInfo Turn info text (e.g., "Your Turn")
-     * @param isMyTurn Whether it's current user's turn
+     * @param turnInfo  Turn info text (e.g., "Your Turn")
+     * @param isMyTurn  Whether it's current user's turn
      */
     public void updateTurnInfo(String roundInfo, String turnInfo, boolean isMyTurn) {
         // Update user ID
@@ -360,15 +364,19 @@ public class GamePanel extends JPanel {
 
         l_roundInfo.setText(roundInfo);
         l_turnInfo.setText(turnInfo);
+
         l_turnInfo.setForeground(isMyTurn ? new Color(0, 128, 0) : new Color(50, 50, 50)); // Dark green if my turn, dark gray otherwise
 
         if (!stateManager.isWaitingForAnswer()) {
             setGuessInputEnabled(isMyTurn);
+        } else {
+            setGuessInputEnabled(false);
         }
     }
 
     /**
      * Update timer display
+     *
      * @param seconds Remaining seconds
      */
     public void updateTimer(int seconds) {
@@ -389,16 +397,18 @@ public class GamePanel extends JPanel {
 
     /**
      * Add a prediction to the history display
-     * @param guess The guessed number
+     *
+     * @param guess  The guessed number
      * @param strike Strike count
-     * @param ball Ball count
+     * @param ball   Ball count
      */
-    public void addPrediction(String guess, int strike, int ball) {
+    public void addPrediction(String userId, String guess, int strike, int ball) {
         if (predictionHistory == null) {
             predictionHistory = new ArrayList<>();
         }
 
         // Add to data model
+        if (guess == null) guess = "???";
         PredictionEntry entry = new PredictionEntry(guess, strike, ball);
         predictionHistory.add(entry);
 
@@ -412,8 +422,8 @@ public class GamePanel extends JPanel {
 
         // Auto-scroll to bottom
         SwingUtilities.invokeLater(() -> {
-            JScrollBar vertical = ((JScrollPane)predictionHistoryPanel.getComponent(1))
-                .getVerticalScrollBar();
+            JScrollBar vertical = ((JScrollPane) predictionHistoryPanel.getComponent(1))
+                    .getVerticalScrollBar();
             vertical.setValue(vertical.getMaximum());
         });
     }
@@ -472,11 +482,14 @@ public class GamePanel extends JPanel {
         b_submit.setEnabled(enabled);
         b_backSpace.setEnabled(enabled);
 
-        // 숫자 버튼도 제어
-        Component[] components = ((JPanel) numberDisplayPanel.getParent().getComponent(3)).getComponents();
-        for (Component comp : components) {
-            if (comp instanceof JButton) {
-                comp.setEnabled(enabled);
+        JPanel displayPanel = (JPanel) numberDisplayPanel.getParent();
+        for (Component comp : displayPanel.getComponents()) {
+            if (comp instanceof JPanel && ((JPanel) comp).getLayout() instanceof GridLayout) {
+                for (Component btn : ((JPanel) comp).getComponents()) {
+                    if (btn instanceof JButton) {
+                        btn.setEnabled(enabled);
+                    }
+                }
             }
         }
     }

@@ -173,9 +173,9 @@ public class RoomWaitingPanel extends JPanel {
         b_editRoom.addActionListener(e -> {
             if (!stateManager.isRoomMaster()) {
                 JOptionPane.showMessageDialog(this,
-                    "방장만 방 정보를 변경할 수 있습니다",
-                    "권한 없음",
-                    JOptionPane.WARNING_MESSAGE);
+                        "방장만 방 정보를 변경할 수 있습니다",
+                        "권한 없음",
+                        JOptionPane.WARNING_MESSAGE);
                 return;
             }
             listener.onEditRoomRequested();
@@ -254,10 +254,10 @@ public class RoomWaitingPanel extends JPanel {
 
         // Room settings
         String settingsText = String.format(
-            "%s | %s | %s",
-            stateManager.getCurrentGameMode() != null ? stateManager.getCurrentGameMode().getDisplayName() : "",
-            stateManager.getCurrentDifficulty() != null ? stateManager.getCurrentDifficulty().getDisplayName() : "",
-            stateManager.getCurrentTurnTimeLimit() != null ? stateManager.getCurrentTurnTimeLimit().getDisplayName() : ""
+                "%s | %s | %s",
+                stateManager.getCurrentGameMode() != null ? stateManager.getCurrentGameMode().getDisplayName() : "",
+                stateManager.getCurrentDifficulty() != null ? stateManager.getCurrentDifficulty().getDisplayName() : "",
+                stateManager.getCurrentTurnTimeLimit() != null ? stateManager.getCurrentTurnTimeLimit().getDisplayName() : ""
         );
         l_roomSettings.setText(settingsText);
 

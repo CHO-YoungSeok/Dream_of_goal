@@ -33,6 +33,7 @@ public class RoomManager {
                 roomPassword, serverCore);
         rooms.add(room);
         serverCore.printDisplay("방 생성: [" + room.roomId + "] " + roomName);
+        serverCore.broadcastRoomList();
         return room;
     }
 
@@ -50,6 +51,7 @@ public class RoomManager {
     public void removeRoom(GameRoom room) {
         rooms.remove(room);
         serverCore.printDisplay("방 삭제: [" + room.roomId + "]");
+        serverCore.broadcastRoomList();
     }
 
     // 방 정보 변경

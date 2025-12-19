@@ -132,6 +132,18 @@ public class ServerCore {
         return false;
     }
 
+    // 방 목록 브로드캐스트
+    public synchronized void broadcastRoomList() {
+        Vector<Message> roomList = roomManager.getRoomList();
+        Message msg = new Message(Message.MessageType.ROOM_LIST_RESPONSE, "SERVER");
+        msg.setData(roomList);
+        for(ClientHandler client : clientHandlers) {
+            if (client.userStatus == Message.UserStatus.ONLINE) {
+                client.sendMessage(msg);
+            }
+        }
+    }
+
     // 접속자 목록 브로드캐스트
     public synchronized void broadcastUserList() {
         java.util.List<String> userIds = new java.util.ArrayList<>();

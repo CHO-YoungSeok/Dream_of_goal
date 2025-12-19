@@ -9,6 +9,8 @@ import client.util.UIHelper;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Map;
+import java.util.List;
 
 /**
  * Main client GUI class - coordinates all components
@@ -212,10 +214,11 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     }
 
     private void handleRoomListResponse(Message msg) {
-        if (msg.getData() instanceof java.util.List) {
-            @SuppressWarnings("unchecked")
+        if (msg.getData() instanceof List) {
             java.util.List<Message> roomList = (java.util.List<Message>) msg.getData();
-            lobbyPanel.updateRoomList(roomList);
+            if (currentState == UIState.LOBBY_SCREEN) {
+                SwingUtilities.invokeLater(() -> lobbyPanel.updateRoomList(roomList));
+            }
         }
     }
 
@@ -376,22 +379,50 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
     }
 
     @SuppressWarnings("unchecked")
-    private void handleRoomInfoUpdate(Message msg) {
-        if (msg.getData() instanceof java.util.Map) {
-            java.util.Map<String, Object> roomData = (java.util.Map<String, Object>) msg.getData();
-            java.util.List<String> players = (java.util.List<String>) roomData.get("players");
-            java.util.Map<String, Boolean> readyStatus = (java.util.Map<String, Boolean>) roomData.get("readyStatus");
-            java.util.Map<String, Integer> playerTeams = (java.util.Map<String, Integer>) roomData.get("playerTeams");
+    private void handleRoomDataResponse(Message msg) {
+        if (msg.isSuccess()) {
+            stateManager.setCurrentRoomId(msg.getRoomId());
+            stateManager.setCurrentRoomName(msg.getRoomName());
+            stateManager.setRoomMasterUserId(msg.getRoomMaster());
+            stateManager.setCurrentGameMode(msg.getGameMode());
+            stateManager.setCurrentDifficulty(msg.getDifficulty());
+            stateManager.setCurrentTurnTimeLimit(msg.getTurnTimeLimit());
 
-            stateManager.setRoomPlayersList(players);
-            stateManager.setPlayerReadyStatus(readyStatus);
+            if (msg.getData() instanceof Map) {
+                Map<String, Object> roomData = (Map<String, Object>) msg.getData();
+                stateManager.setRoomPlayersList((List<String>) roomData.get("players"));
+                stateManager.setPlayerReadyStatus((Map<String, Boolean>) roomData.get("readyStatus"));
+
+                Map<String, Integer> playerTeams = (Map<String, Integer>) roomData.get("playerTeams");
+                if (playerTeams != null) {
+                    stateManager.setPlayerTeamMap(playerTeams);
+                    int myTeam = playerTeams.getOrDefault(stateManager.getCurrentUserId(), 0);
+                    stateManager.setMyTeamNumber(myTeam);
+                }
+            }
+            roomWaitingPanel.updateRoomInfo();
+            roomWaitingPanel.updatePlayerList();
+            switchToRoomWaitingScreen();
+        } else {
+            JOptionPane.showMessageDialog(this, msg.getErrorMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+
+    @SuppressWarnings("unchecked")
+    private void handleRoomInfoUpdate(Message msg) {
+        if (msg.getData() instanceof Map) {
+            Map<String, Object> roomData = (Map<String, Object>) msg.getData();
+            stateManager.setRoomPlayersList((List<String>) roomData.get("players"));
+            stateManager.setPlayerReadyStatus((Map<String, Boolean>) roomData.get("readyStatus"));
             stateManager.setRoomMasterUserId(msg.getRoomMaster());
 
+            Map<String, Integer> playerTeams = (Map<String, Integer>) roomData.get("playerTeams");
             if (playerTeams != null) {
-                stateManager.setPlayerTeamMap(playerTeams);
-                stateManager.setMyTeamNumber(playerTeams.getOrDefault(stateManager.getCurrentUserId(), 0));
+                int myTeam = playerTeams.getOrDefault(stateManager.getCurrentUserId(), 0);
+                stateManager.setMyTeamNumber(myTeam);
+                System.out.println("DEBUG: 팀 정보 갱신 - MyID: " + stateManager.getCurrentUserId() + ", MyTeam: " + myTeam);
             }
-
             roomWaitingPanel.updatePlayerList();
             roomWaitingPanel.updateRoomInfo();
         }
@@ -439,45 +470,61 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         stateManager.setCurrentlyTopInning(msg.isTop());
         stateManager.setCurrentTurnPlayerId(msg.getCurrentTurnPlayer());
 
+        String myId = stateManager.getCurrentUserId().trim();
+        String turnId = msg.getCurrentTurnPlayer().trim();
+        boolean isMyTurn = myId.equalsIgnoreCase(turnId);
         String roundInfo = msg.getRoundInfo();
-        boolean isMyTurn = stateManager.getCurrentUserId().equals(msg.getCurrentTurnPlayer());
-        String turnInfo = isMyTurn ? "Your Turn" : "Waiting for " + msg.getCurrentTurnPlayer();
+        String turnStatus = isMyTurn ? "★ Your Turn ★" : "Waiting for " + msg.getCurrentTurnPlayer();
 
-        gamePanel.updateTurnInfo(roundInfo, turnInfo, isMyTurn);
-
-        // Start turn timer
+        gamePanel.updateTurnInfo(roundInfo, turnStatus, isMyTurn);
         stateManager.setRemainingSeconds(stateManager.getTurnTimeLimitSeconds());
-        gamePanel.updateTimer(stateManager.getRemainingSeconds());
+    }
 
-        if (stateManager.getTurnTimer() != null && stateManager.getTurnTimer().isRunning()) {
-            stateManager.getTurnTimer().stop();
-        }
+    /*
+    private void handleGuessResult(Message msg) {
+        String guessUserId = msg.getUserId();
+        int myTeam = stateManager.getMyTeamNumber();
+        int guessUserTeam = stateManager.getPlayerTeamMap().getOrDefault(guessUserId, 0);
+        Message.GameMode mode = stateManager.getCurrentGameMode();
 
-        Timer turnTimer = new Timer(1000, e -> {
-            int remaining = stateManager.getRemainingSeconds() - 1;
-            stateManager.setRemainingSeconds(remaining);
-            if (remaining >= 0) {
-                gamePanel.updateTimer(remaining);
+        SwingUtilities.invokeLater(() -> {
+            // 판정 조건: 1v1이거나 같은 팀인 경우
+            boolean isSameTeam = (mode == Message.GameMode.ONE_VS_ONE) || (myTeam != 0 && myTeam == guessUserTeam);
+
+            if (isSameTeam) {
+                gamePanel.addPrediction(guessUserId, msg.getGuess(), msg.getStrike(), msg.getBall());
+                String teamLog = String.format("[우리팀] %s: %s -> %dS %dB",
+                        guessUserId, msg.getGuess(), msg.getStrike(), msg.getBall());
+                gamePanel.displayMessage(teamLog, new Color(0, 0, 139));
             } else {
-                stateManager.getTurnTimer().stop();
+                String otherLog = String.format("[상대팀] %s: %s -> %dS %dB",
+                        guessUserId, msg.getGuess(), msg.getStrike(), msg.getBall());
+                gamePanel.displayMessage(otherLog, new Color(139, 0, 0));
             }
         });
-        stateManager.setTurnTimer(turnTimer);
-        turnTimer.start();
-    }
+    } */
 
     private void handleGuessResult(Message msg) {
-        String currentUserId = stateManager.getCurrentUserId();
-        String guessUserId = msg.getUserId();
+    String guessUserId = msg.getUserId();
+    String guessDigit = msg.getGuess();
 
-        // Current user's predictions go to history panel
-        if (currentUserId != null && currentUserId.equals(guessUserId)) {
-            gamePanel.addPrediction(msg.getGuess(), msg.getStrike(), msg.getBall());
+    int myTeam = stateManager.getMyTeamNumber();
+    int attackerTeam = stateManager.getPlayerTeamMap().getOrDefault(guessUserId, 0);
+
+    SwingUtilities.invokeLater(() -> {
+        if (myTeam != 0 && myTeam == attackerTeam) {
+            gamePanel.addPrediction(guessUserId, guessDigit, msg.getStrike(), msg.getBall());
+
+            gamePanel.displayMessage(String.format("[우리팀] %s: %s -> %dS %dB",
+                guessUserId, guessDigit, msg.getStrike(), msg.getBall()), new Color(0, 0, 139));
         } else {
-            // Other players' predictions go to chat (light gray)
-            gamePanel.displayMessage(msg.toString(), new Color(100, 100, 100));
+            // 상대 팀은 채팅으로만 숫자 공개
+            gamePanel.displayMessage(String.format("[상대팀] %s: %s -> %dS %dB",
+                guessUserId, guessDigit, msg.getStrike(), msg.getBall()), new Color(139, 0, 0));
         }
-    }
+    });
+}
+
 
     private void handleGameResult(Message msg) {
         String winnerId = msg.getWinnerId();
@@ -525,6 +572,13 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
         } else if (currentState == UIState.GAME_SCREEN) {
             SwingUtilities.invokeLater(() -> gamePanel.displayMessage(formattedMessage, new Color(50, 50, 50))); // Dark gray
         }
+    }
+
+    private void handleChatTeam(Message msg) {
+        String teamChatMsg = String.format("[Team] %s: %s", msg.getUserId(), msg.getContent());
+        Color teamColor = new Color(0, 0, 139);
+        if (currentState == UIState.GAME_SCREEN) gamePanel.displayMessage(teamChatMsg, teamColor);
+        else if (currentState == UIState.ROOM_WAITING_SCREEN) roomWaitingPanel.addChatMessage(teamChatMsg, teamColor);
     }
 
     private void handleError(Message msg) {
@@ -786,6 +840,15 @@ public class BaseballClientGUI extends JFrame implements MessageHandler,
             msg = new Message(Message.MessageType.CHAT_ROOM, stateManager.getCurrentUserId(), content);
             displayMessagePrefix = "[To Room]: ";
             displayColor = new Color(50, 50, 50); // Dark gray
+        }  else if (message.startsWith("/team ")) {
+            if (stateManager.getCurrentGameMode() != Message.GameMode.TWO_VS_TWO) {
+                gamePanel.displayMessage("팀 채팅은 2v2 모드에서만 가능합니다.", Color.RED);
+                return;
+            }
+            String content = message.substring(6);
+            msg = new Message(Message.MessageType.CHAT_TEAM, stateManager.getCurrentUserId(), content);
+            displayMessagePrefix = "[To Team]: ";
+            displayColor = new Color(0, 0, 139); // Dark blue
         } else {
             // Default: room chat if in room/game
             if (currentState == UIState.ROOM_WAITING_SCREEN || currentState == UIState.GAME_SCREEN) {

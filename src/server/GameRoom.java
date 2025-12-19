@@ -2,52 +2,45 @@ package server;
 
 import common.Message;
 import java.io.*;
-import java.util.Hashtable;
-import java.util.Optional;
-import java.util.Vector;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.io.Serializable;
 
-// 게임 방 클래스
+// 방 관리를 담당하는 클래스
 
 public class GameRoom {
-    // 방 정보
-    int roomId;
-    String roomName;
-    String roomMaster;
-    Message.GameMode gameMode;
-    Message.Difficulty difficulty;
-    Message.TurnTimeLimit turnTimeLimit;
-    String roomPassword;
+    // 방 기본 정보
+    int roomId; // 방 번호
+    String roomName; // 방 제목
+    String roomMaster; // 방장 ID
+    Message.GameMode gameMode; // 1v1 또는 2v2
+    Message.Difficulty difficulty; // 난이도
+    Message.TurnTimeLimit turnTimeLimit; // 턴 제한 시간
+    String roomPassword; // 방 비밀번호
 
-    // 플레이어 관리
-    Vector<ClientHandler> players = new Vector<>();
-    Hashtable<String, Boolean> readyStatus = new Hashtable<>();
+    // 플레이어 및 팀 관리
+    Vector<ClientHandler> players = new Vector<>(); // 접속 중인 플레이어 목록
+    Hashtable<String, Boolean> readyStatus = new Hashtable<>(); // 플레이어별 준비 상태
+    Hashtable<String, Integer> playerTeams = new Hashtable<>(); // 유저별 소속 팀
+    Hashtable<Integer, String> teamLeaders = new Hashtable<>(); // 팀별 리더(정답 설정 권한자)
+    private Hashtable<Integer, String> nextAttackerIdMap =  new Hashtable<>(); // 팀별 다음 공격 예약자
 
     // 게임 진행 상태
-    boolean isGameRunning = false;
-    public Hashtable<String, String> playerAnswers = new Hashtable<>();
+    boolean isGameRunning = false; // 게임 진행 여부
+    String gameId; // 게임 식별자(CSV 기록용)
+    int currentRound = 1; // 현재 회차(1~9회)
+    boolean isTopHalf = true; // 초(true) / 말(false) 여부
+    private String currentTurnPlayerId = null; // 현재 입력 권한을 가진 플레이어 ID
 
-    // 2v2 팀 점수 추적
-    public int team1Score = 0;
-    public int team2Score = 0;
+    // 정답 및 결과 관련
+    public Hashtable<String, String> playerAnswers = new Hashtable<>(); // 1v1용 정답 저장
+    Hashtable<String, String> teamAnswers = new Hashtable<>(); // 2v2용 팀 정답 저장
+    private final Set<String> answeredPlayers = new HashSet<>(); // 1v1 정답 설정 완료 유저
+    private final Set<Integer> answeredTeams = new HashSet<>(); // 2v2 정답 설정 완료 팀
 
-    Hashtable<String, String> teamAnswers = new Hashtable<>();
-    Hashtable<Integer, String> teamLeaders = new Hashtable<>();
-    private final java.util.Set<Integer> answeredTeams = new java.util.HashSet<>();
-
-    Hashtable<String, Integer> playerTeams = new Hashtable<>();
-    int currentRound = 1;
-    boolean isTopHalf = true;
-    String gameId;
-
-    // 정답이 설정된 플레이어 수 확인
-    private final java.util.Set<String> answeredPlayers = new java.util.HashSet<>();
+    // 외부 인스턴스 및 타이머
     private java.util.Timer turnTimer;
     private ServerCore serverCore;
-
-    // 턴 진행 관리
-    private String currentTurnPlayerId = null;
 
     public GameRoom(int roomId, String roomName, String roomMaster,
                     Message.GameMode gameMode, Message.Difficulty difficulty,
@@ -63,42 +56,17 @@ public class GameRoom {
         this.serverCore = serverCore;
     }
 
-    // 방 업데이트 메시지 생성
-    public Message createRoomUpdateMessage(String content) {
-        Message msg = new Message(Message.MessageType.ROOM_INFO_UPDATE, "SERVER", content);
-        msg.setRoomId(roomId);
-        msg.setRoomName(roomName);
-        msg.setRoomMaster(roomMaster);
-        msg.setGameMode(gameMode);
-        msg.setDifficulty(difficulty);
-        msg.setTurnTimeLimit(turnTimeLimit);
-        msg.setRoomStatus(isGameRunning ? Message.RoomStatus.IN_GAME : Message.RoomStatus.WAITING);
-        msg.setCurrentPlayers(players.size());
-        msg.setMaxPlayers(gameMode.getMaxPlayers());
+    // ------ 방 관리 (입장, 퇴장, 상태 업데이트) ------
 
-        Hashtable<String, Serializable> roomData = new Hashtable<>();
-        Vector<String> playerIds = players.stream()
-                .map(p -> p.userId)
-                .collect(Collectors.toCollection(Vector::new));
-        roomData.put("players", playerIds);
-        roomData.put("readyStatus", new Hashtable<>(readyStatus));
-        msg.setData(roomData);
-
-        return msg;
-    }
-
-    // 플레이어 추가
+    // 플레이어 추가 및 팀,리더 자동 배정
     public boolean addPlayer(ClientHandler player) {
-        if (players.size() >= gameMode.getMaxPlayers()) {
-            return false;
-        }
+        if (players.size() >= gameMode.getMaxPlayers()) return false;
 
         players.add(player);
-
         boolean isMaster = player.userId.equals(roomMaster);
         readyStatus.put(player.userId, isMaster);
 
-        // 2v2 팀 배정 및 팀 대표 지정
+        // 2v2 팀 배정 로직
         if (gameMode == Message.GameMode.TWO_VS_TWO) {
             int teamNum = (players.size() <= 2) ? 1 : 2;
             playerTeams.put(player.userId, teamNum);
@@ -123,7 +91,7 @@ public class GameRoom {
         return true;
     }
 
-    // 플레이어 제거
+    // 플레이어 제거 및 중도 이탈
     public void removePlayer(ClientHandler player) {
         String disconnectedUserId = player.userId;
         int disconnectedTeam = playerTeams.getOrDefault(disconnectedUserId, 0);
@@ -190,9 +158,7 @@ public class GameRoom {
     // 팀 리더 정보 재설정
     public void updateTeamLeadersFromPlayerTeams() {
         if (gameMode != Message.GameMode.TWO_VS_TWO) return;
-
         teamLeaders.clear();
-
         // 플레이어 목록을 순회하며 팀별로 첫 번째 플레이어를 팀 리더로 지정
         for (ClientHandler p : players) {
             Integer teamNum = playerTeams.get(p.userId);
@@ -201,6 +167,32 @@ public class GameRoom {
             }
         }
     }
+
+    // 클라이언트에게 보낼 방 상태 메시지 생성
+    public Message createRoomUpdateMessage(String content) {
+        Message msg = new Message(Message.MessageType.ROOM_INFO_UPDATE, "SERVER", content);
+        msg.setRoomId(roomId);
+        msg.setRoomName(roomName);
+        msg.setRoomMaster(roomMaster);
+        msg.setGameMode(gameMode);
+        msg.setDifficulty(difficulty);
+        msg.setTurnTimeLimit(turnTimeLimit);
+        msg.setRoomStatus(isGameRunning ? Message.RoomStatus.IN_GAME : Message.RoomStatus.WAITING);
+        msg.setCurrentPlayers(players.size());
+        msg.setMaxPlayers(gameMode.getMaxPlayers());
+
+        Hashtable<String, Serializable> roomData = new Hashtable<>();
+        Vector<String> playerIds = players.stream()
+                .map(p -> p.userId)
+                .collect(Collectors.toCollection(Vector::new));
+        roomData.put("players", playerIds);
+        roomData.put("readyStatus", new Hashtable<>(readyStatus));
+        roomData.put("playerTeams", new Hashtable<>(playerTeams));
+        msg.setData(roomData);
+        return msg;
+    }
+
+    // ------ 게임 시작 및 정답 설정 ------
 
     // 준비 상태 변경
     public void setReady(String userId, boolean ready) {
@@ -300,13 +292,15 @@ public class GameRoom {
         answeredTeams.clear();
         teamAnswers.clear();
 
-        // 팀 점수 초기화
-        team1Score = 0;
-        team2Score = 0;
-
         // 플레이어 상태 변경
         for (ClientHandler player : players) {
             player.userStatus = Message.UserStatus.IN_GAME;
+        }
+
+        // 팀별 첫 번째 공격자를 팀장으로 초기화
+        if (gameMode == Message.GameMode.TWO_VS_TWO) {
+            nextAttackerIdMap.put(1, teamLeaders.get(1));
+            nextAttackerIdMap.put(2, teamLeaders.get(2));
         }
 
         // 정답 설정 메시지 브로드캐스트
@@ -343,6 +337,16 @@ public class GameRoom {
         serverCore.broadcastUserList();
     }
 
+    // 게임 시작 시 초기화
+    private void initNextAttackers() {
+        for (int teamNum : new int[]{1,2}) {
+            // 팀 대표를 첫 공격자로 설정
+            nextAttackerIdMap.put(teamNum, teamLeaders.get(teamNum));
+        }
+    }
+
+    // ------ 턴 관리 및 공격 로직 ------
+
     // 턴 정보 생성 및 전송
     public void sendTurnInfo(ClientHandler turnPlayer) {
         // 기존 타이머 중지
@@ -351,7 +355,14 @@ public class GameRoom {
             turnTimer = null;
         }
 
-        currentTurnPlayerId = (turnPlayer != null) ? turnPlayer.userId : null;
+        //currentTurnPlayerId = (turnPlayer != null) ? turnPlayer.userId : null;
+
+        this.currentTurnPlayerId = (turnPlayer != null) ? turnPlayer.userId : null;
+
+        // 서버 콘솔에 찍히는 로그 - 비대표 ID가 나오는지 여기서 확인하세요!
+        String debugLog = String.format("[TURN_CONTROL] Round:%d, %s, Player:%s",
+                currentRound, (isTopHalf ? "초" : "말"), currentTurnPlayerId);
+        serverCore.printDisplay(debugLog);
 
         // 서버 턴 타이머 시작
         if (turnPlayer != null && isGameRunning) {
@@ -379,6 +390,10 @@ public class GameRoom {
         turnMsg.setRound(currentRound);
         turnMsg.setTop(isTopHalf);
         turnMsg.setCurrentTurnPlayer(currentTurnPlayerId);
+
+        int attackerTeam = playerTeams.getOrDefault(currentTurnPlayerId, 0);
+        turnMsg.setWinnerTeam(attackerTeam);
+
         turnMsg.setContent(currentRound + "회 " + (isTopHalf ? "초" : "말"));
         broadcastToRoom(turnMsg);
     }
@@ -418,29 +433,18 @@ public class GameRoom {
         int strike = result[0];
         int ball = result[1];
 
-        // 결과 전송
-        Message resultMsg = Message.createGuessResult(player.userId, guess, strike, ball);
+        int attackerTeam = playerTeams.getOrDefault(player.userId, 0);
 
-        // 결과 공유 로직
-        if (gameMode == Message.GameMode.TWO_VS_TWO) {
-            int myTeam = playerTeams.getOrDefault(player.userId, 0);
 
-            for (ClientHandler p : players) {
-                // 같은 팀원에게는 추측 숫자와 결과를 모두 공유
-                if (playerTeams.getOrDefault(p.userId, 0) == myTeam) {
-                    // 팀 채팅이 아닌 일반 메시지로 전송하여 기록에 남김
-                    p.sendMessage(resultMsg);
-                } else {
-                    // 상대 팀에게는 추측 숫자를 비공개하고 결과만 공개
-                    Message opponentResultMsg = Message.createGuessResult(player.userId, "???", strike, ball);
-                    // Content를 사용하여 상대 팀에게 추측 결과를 명시적으로 알림
-                    opponentResultMsg.setContent("상대 팀 (" + player.userId + ") 추측: " + strike + "S " + ball + "B");
-                    p.sendMessage(opponentResultMsg);
-                }
-            }
-        } else {
-            // 1v1: 기존 로직 유지 (모두에게 공개)
-            broadcastToRoom(resultMsg);
+        for(ClientHandler p : players) {
+            Message resultMsg = new Message(Message.MessageType.GUESS_RESULT, player.userId);
+            resultMsg.setContent(guess);
+            resultMsg.setStrike(strike);
+            resultMsg.setBall(ball);
+            resultMsg.setRound(currentRound);
+            resultMsg.setTop(isTopHalf);
+
+            p.sendMessage(resultMsg);
         }
 
         // 기록 저장
@@ -463,10 +467,77 @@ public class GameRoom {
         }
     }
 
+    private ClientHandler getNextTurnPlayer(ClientHandler currentPlayer) {
+        if (players.isEmpty()) return null;
+
+        // 1v1 모드
+        if (gameMode == Message.GameMode.ONE_VS_ONE) {
+            int currentPlayerIndex = players.indexOf(currentPlayer);
+            int nextPlayerIndex = (currentPlayerIndex + 1) % players.size();
+
+            if (!isTopHalf) {
+                currentRound++;
+            }
+            isTopHalf = !isTopHalf;
+
+            // 9회 종료 체크
+            if (currentRound > 9) {
+                endGame(null, true, 0);
+                return null;
+            }
+            return players.get(nextPlayerIndex);
+        }
+
+        // 2v2 모드
+        int currentTeam = playerTeams.getOrDefault(currentPlayer.userId, 0);
+
+        // 현재 팀의 다음 타자 예약(미리 교대)
+        rotateTeamAttacker(currentTeam);
+
+        // 공수 전환 로직
+        if (!isTopHalf) {
+            currentRound++; // 1회 말 종료 -> 2회 초
+        }
+        isTopHalf = !isTopHalf;
+
+        if (currentRound > 9) {
+            endGame(null, true, 0);
+            return null;
+        }
+
+        // 다음 팀의 '예약된 타자' 가져오기
+        int nextTeam = (currentTeam== 1) ? 2 : 1;
+        String nextPlayerId = nextAttackerIdMap.get(nextTeam);
+
+        return players.stream()
+                .filter(p -> p.userId.equals(nextPlayerId))
+                .findFirst()
+                .orElse(players.get(0)); // 예외 대비
+    }
+
+    // 2v2 타자 교체 헬퍼 메서드
+    private void rotateTeamAttacker(int teamNum) {
+        List<String> teamMembers = players.stream()
+                .filter(p -> playerTeams.getOrDefault(p.userId, 0) == teamNum)
+                .map(p -> p.userId)
+                .sorted()
+                .collect(Collectors.toList());
+
+        if (teamMembers.size() < 2) return;
+
+        String currentAttackerId = nextAttackerIdMap.get(teamNum);
+        int currentIndex = teamMembers.indexOf(currentAttackerId);
+        int nextIndex = (currentIndex + 1) % teamMembers.size();
+
+        nextAttackerIdMap.put(teamNum, teamMembers.get(nextIndex));
+    }
+
     // 현재 턴 플레이어 ID
     public String getCurrentTurnPlayerId() {
         return currentTurnPlayerId;
     }
+
+    // ------ 유틸리티 및 데이터 저장 ------
 
     // 상대방 정답 찾기
     private String getTargetAnswer(ClientHandler currentPlayer) {
@@ -488,86 +559,6 @@ public class GameRoom {
         return null;
     }
 
-    private ClientHandler getNextTurnPlayer(ClientHandler currentPlayer) {
-        if (players.isEmpty()) return null;
-
-        // 1v1 모드
-        if (gameMode == Message.GameMode.ONE_VS_ONE) {
-            int currentPlayerIndex = players.indexOf(currentPlayer);
-            int nextPlayerIndex = (currentPlayerIndex + 1) % players.size();
-
-            isTopHalf = !isTopHalf;
-
-            currentRound++;
-
-            // 9회말(18턴) 종료 시 무승부 처리
-            if (currentRound > 9 * 2) {
-                // 9회말까지 진행하려면 총 18턴이 필요
-                // 현재 라운드가 매 턴 증가하므로, 18턴을 넘어 19번째 라운드가 될 때 종료 처리
-                endGame(null, true, 0);
-                return null;
-            }
-
-            return players.get(nextPlayerIndex);
-        }
-
-        // 2v2 모드
-        int currentTeam = playerTeams.getOrDefault(currentPlayer.userId, 0);
-
-        //  현재 팀의 다음 입력 순번을 계산하고 teamLeaders에 저장
-        int currentPlayerIndex = players.indexOf(currentPlayer);
-        int nextPlayerInTeamIndex = -1;
-
-        // 현재 팀 내에서 다음 순번 플레이어 찾기
-        for (int i = currentPlayerIndex + 1; i < players.size(); i++) {
-            if (playerTeams.getOrDefault(players.get(i).userId, 0) == currentTeam) {
-                nextPlayerInTeamIndex = i;
-                break;
-            }
-        }
-
-        // 만약 다음 순번 플레이어가 없다면, 팀의 첫 번째 플레이어(팀 대표)로 순서를 순환
-        if (nextPlayerInTeamIndex == -1) {
-            for (int i = 0; i < players.size(); i++) {
-                if (playerTeams.getOrDefault(players.get(i).userId, 0) == currentTeam) {
-                    nextPlayerInTeamIndex = i;
-                    break;
-                }
-            }
-        }
-
-        // 다음 순번 플레이어 ID를 teamLeaders에 저장
-        if (nextPlayerInTeamIndex != -1) {
-            String nextPlayerInTeamId = players.get(nextPlayerInTeamIndex).userId;
-            teamLeaders.put(currentTeam, nextPlayerInTeamId);
-        }
-
-
-        // 공수 전환 및 회차 변경
-        if (isTopHalf) {
-            isTopHalf = false; // 말로 변경
-        } else {
-            isTopHalf = true;
-            currentRound++; // 다음 회차 초로 변경
-        }
-
-        if (currentRound > 9) {
-            endGame(null, true, 0); // 9회말 종료 시 무승부
-            return null;
-        }
-
-        // 다음 팀 결정
-        int nextTeam = (currentTeam == 1) ? 2 : 1;
-
-
-        //다음 팀의 입력 권한자를 결정
-        String nextTurnPlayerId = teamLeaders.get(nextTeam);
-
-        return players.stream()
-                .filter(p -> p.userId.equals(nextTurnPlayerId))
-                .findFirst()
-                .orElse(null);
-    }
 
     // 게임 종료
     public void endGame(String winnerId, boolean isDraw, int winnerTeam) {

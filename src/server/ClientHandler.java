@@ -117,30 +117,7 @@ public class ClientHandler implements Runnable {
 
             // 게임 진행
             case GUESS:
-                if (currentRoom != null) {
-                    boolean isAnswerSetupPhase = false;
-
-                    if (currentRoom.isGameRunning) {
-                        if (currentRoom.gameMode == Message.GameMode.ONE_VS_ONE) {
-                            // 1v1: 아직 내 정답을 설정하지 않았을 때
-                            isAnswerSetupPhase = !currentRoom.playerAnswers.containsKey(userId);
-                        } else if (currentRoom.gameMode == Message.GameMode.TWO_VS_TWO) {
-                            int playerTeam = currentRoom.playerTeams.getOrDefault(userId, 0);
-                            String leaderId = currentRoom.teamLeaders.get(playerTeam);
-
-                            // 2v2: 아직 우리 팀 정답을 설정하지 않았고, 내가 팀 대표일 때
-                            isAnswerSetupPhase = playerTeam != 0 &&
-                                    !currentRoom.isTeamAnswerSet(playerTeam) &&
-                                    userId.equals(leaderId);
-                        }
-                    }
-
-                    if (isAnswerSetupPhase) {
-                        handleGameStartAnswer(msg);
-                    } else {
-                        handleGuess(msg);
-                    }
-                }
+                handleGuessRequest(msg);
                 break;
 
             // 채팅
@@ -402,25 +379,38 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // 정답 처리
-    private void handleGameStartAnswer(Message msg) {
+    // 추측 메시지 처리
+    private void handleGuessRequest(Message msg) {
         if (currentRoom == null) return;
 
-        // GameRoom에 정답을 등록하고, 모든 플레이어의 정답이 등록되었는지 확인
-        boolean allAnswered = currentRoom.setPlayerAnswer(userId, msg.getGuess());
-        serverCore.printDisplay(userId + " 정답 설정 완료. [" + msg.getGuess() + "]");
-        if (allAnswered) {
-            currentRoom.startFirstTurn(); // 모든 정답이 등록되면 첫 턴을 시작
-        }
-    }
+        boolean isAnswerSetupPhase = false;
 
-    // 추측 처리
-    private void handleGuess(Message msg) {
-        if (currentRoom != null && currentRoom.isGameRunning) {
-            currentRoom.handleGuess(this, msg.getGuess());
+        if (currentRoom.isGameRunning) {
+            if (currentRoom.gameMode == Message.GameMode.ONE_VS_ONE) {
+                // 1v1: 아직 내 정답을 설정하지 않았을 때
+                isAnswerSetupPhase = !currentRoom.playerAnswers.containsKey(userId);
+            } else if (currentRoom.gameMode == Message.GameMode.TWO_VS_TWO) {
+                int playerTeam = currentRoom.playerTeams.getOrDefault(userId, 0);
+                String leaderId = currentRoom.teamLeaders.get(playerTeam);
+
+                // 2v2: 아직 우리 팀 정답이 없고, 내가 팀 대표일 때만 정답 설정 가능
+                isAnswerSetupPhase = playerTeam != 0 &&
+                        !currentRoom.isTeamAnswerSet(playerTeam) &&
+                        userId.equals(leaderId);
+            }
+        }
+
+        if (isAnswerSetupPhase) {
+            // 정답 설정 단계
+            boolean allAnswered = currentRoom.setPlayerAnswer(userId, msg.getGuess());
+            serverCore.printDisplay("[SET_ANSWER] " + userId + " (Team " + currentRoom.playerTeams.get(userId) + ") -> " + msg.getGuess());
+
+            if (allAnswered) {
+                currentRoom.startFirstTurn(); // 모든 팀/플레이어 완료 시 게임 시작
+            }
         } else {
-            sendMessage(Message.createErrorMessage(Message.ErrorCode.UNKNOWN_ERROR,
-                    "현재 게임 중이 아니거나 방에 속해있지 않습니다."));
+            // 실제 공격(추측) 단계
+            currentRoom.handleGuess(this, msg.getGuess());
         }
     }
 
@@ -455,6 +445,9 @@ public class ClientHandler implements Runnable {
 
             Message chatMsg = Message.createChatMessage(
                     Message.MessageType.CHAT_TEAM, userId, msg.getContent(), null);
+            chatMsg.setTeamNumber(myTeam); // 메시지에 팀 번호 명시
+
+            serverCore.printDisplay("[TEAM_CHAT] Room " + currentRoom.roomId + " | Team " + myTeam + " | " + userId + ": " + msg.getContent());
 
             // 같은 팀원에게만 메시지 전송
             for (ClientHandler p : currentRoom.players) {
@@ -711,33 +704,9 @@ public class ClientHandler implements Runnable {
 
             case GUESS:
                 if (currentRoom != null) {
-
-                    boolean isAnswerSetupPhase = false;
-
-                    if (currentRoom.isGameRunning) {
-                        if (currentRoom.gameMode == Message.GameMode.ONE_VS_ONE) {
-                            // 1v1: 아직 내 정답을 설정하지 않았을 때
-                            isAnswerSetupPhase = !currentRoom.playerAnswers.containsKey(userId);
-                        } else if (currentRoom.gameMode == Message.GameMode.TWO_VS_TWO) {
-                            int playerTeam = currentRoom.playerTeams.getOrDefault(userId, 0);
-                            String leaderId = currentRoom.teamLeaders.get(playerTeam);
-
-                            // 2v2: 아직 우리 팀 정답을 설정하지 않았고, 내가 팀 대표일 때
-                            isAnswerSetupPhase = playerTeam != 0 &&
-                                    !currentRoom.isTeamAnswerSet(playerTeam) &&
-                                    userId.equals(leaderId);
-                        }
-                    }
-
-                    if (isAnswerSetupPhase) {
-                        sb.append(" | 정답 설정: ").append(msg.getGuess()); // 정답 설정 로깅
-                    } else {
-                        sb.append(" | 추측: ").append(msg.getGuess()); // 일반 추측 로깅
-                    }
-
-                    if (currentRoom != null) {
-                        sb.append(" | 방ID: ").append(currentRoom.roomId);
-                    }
+                    int team = currentRoom.playerTeams.getOrDefault(userId, 0);
+                    sb.append(" (Team ").append(team).append(") | 값: ").append(msg.getGuess());
+                    sb.append(" | 방ID: ").append(currentRoom.roomId);
                 }
                 break;
 
